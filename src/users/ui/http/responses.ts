@@ -1,0 +1,39 @@
+import { z } from 'zod';
+
+import { email, id, isoDate, paginated } from '../../../shared/contracts';
+import type { UserId, UserRow } from '../../domain';
+
+/**
+ * The base user response. Every other user-shaped response extends or composes this, so a field
+ * added here appears everywhere it should and nowhere it should not.
+ */
+export const userResponse = z.object({
+  id: id<UserId>({ describe: 'Identifier of the user' }),
+  email: email({ describe: "The user's primary email address" }),
+  createdAt: isoDate({ describe: 'When the user was created' }),
+  updatedAt: isoDate({ describe: 'When the user was last updated' }),
+});
+
+export type UserResponse = z.infer<typeof userResponse>;
+
+/** A trimmed shape for list rows — a list does not need every field a detail view has. */
+export const userListItemResponse = userResponse.omit({ updatedAt: true });
+
+export const userListResponse = paginated(userListItemResponse);
+
+/** Extended with fields only an owner or admin may see. Composition, not a parallel contract. */
+export const userDetailResponse = userResponse.extend({
+  lastSeenAt: isoDate({ describe: 'When the user was last active' }).nullable(),
+});
+
+/**
+ * Row to response. The only place the persistence shape and the transport shape meet, and where
+ * `Date` becomes an ISO string. `passwordHash` is absent here and stripped by the serializer
+ * regardless, so it cannot leak by omission.
+ */
+export const toUserResponse = (row: UserRow): UserResponse => ({
+  id: row.id,
+  email: row.email,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+});

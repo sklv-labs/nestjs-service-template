@@ -48,6 +48,7 @@
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
     "@sklv-labs/dev-configs": "^0.2.1",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.4.1",
     "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^4.1.11",

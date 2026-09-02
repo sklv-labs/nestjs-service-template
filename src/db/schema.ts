@@ -1,1 +1,1 @@
-export * from '../users/domain/schemas';
+export * from '../users/domain/users.table';

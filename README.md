@@ -27,25 +27,46 @@ Requires Node >= 24 and pnpm 11 (`corepack enable`).
 One directory per feature, four layers, dependencies pointing inward.
 
 ```
-src/contracts/    primitives shared across features — branded ids, pagination, error envelope
+src/shared/            reusable across features
+├── contracts/         field builders (id, email, str, int, bool, isoDate), pagination
+├── errors/            DomainError + businessError declaration
+└── http/              endpoint descriptor, request builders, error filter
 src/users/
-├── contracts/    transport contracts: request, response, query, errors, typed examples
-├── domain/       drizzle tables and domain types — no framework imports
-├── service/
-│   ├── abstracts/               the repository port, an abstract class
-│   ├── in-memory-repository/    the bound adapter — no Postgres needed
-│   ├── users-repository/        the drizzle adapter, same port, one line to swap
-│   └── users-service/           business rules, depends on the port
-├── operation/    use cases spanning several services; empty until one appears
-└── ui/           controller — the only layer that knows about HTTP
+├── domain/            table, branded id, business errors — no framework, no HTTP
+├── service/           port, in-memory adapter, business rules
+├── ui/
+│   └── http/          contracts live *inside* the transport that uses them
+│       ├── endpoints/ one file per endpoint: headers, params, query, body, responses
+│       ├── responses.ts   base response, composed and extended
+│       └── users.controller.ts
+└── users.module.ts
 ```
+
+The UI layer is organised by transport, not by concern. `ui/http/` holds the HTTP contracts;
+`ui/rmq/` and `ui/queue/` would sit beside it with their own message contracts. Contracts are not a
+layer of their own — they describe a boundary, so they belong to the transport that owns it.
 
 The `users` feature is a specimen, not a reference implementation. It exists to make the layering
 concrete enough to judge, and it is wired to the in-memory repository so it runs with no database.
 
 Its UI layer is built on **schema contracts**: one Zod schema per boundary, projected as runtime
-validation, a TypeScript type and OpenAPI. There are no DTO classes and no class-validator. See
-[the guideline](https://github.com/sklv-labs/guidelines/blob/main/ts/patterns/schema-contracts.md)
+validation, a TypeScript type and OpenAPI. There are no DTO classes and no class-validator.
+
+Each endpoint is described once, in one file — headers, params, query, body, and every response it
+can produce. The controller derives its decorators, parameter schemas, handler types and OpenAPI
+document from that descriptor:
+
+```ts
+@Post()
+@ApiEndpoint(createUser)
+@SerializeOptions({ schema: userResponse })
+async create(
+  @ReqBody(createUser) body: BodyOf<typeof createUser>,
+  @ReqHeaders(createUser) headers: HeadersOf<typeof createUser>,
+) { … }
+```
+
+See [the guideline](https://github.com/sklv-labs/guidelines/blob/main/ts/patterns/schema-contracts.md)
 for the reasoning and the constraints that shape it.
 
 The port is an `abstract class` rather than an interface so it can be a DI token directly:
@@ -54,8 +75,13 @@ The port is an `abstract class` rather than an interface so it can be a DI token
 providers: [{ provide: UsersRepository, useClass: DrizzleUsersRepository }];
 ```
 
-`@SerializeOptions({ schema: UserResponseSchema })` is what keeps `passwordHash` out of responses:
-Zod strips keys the contract does not name, so the omission is enforced rather than remembered.
+`@SerializeOptions({ schema: userResponse })` is what keeps `passwordHash` out of responses: Zod
+strips keys the contract does not name, so the omission is enforced rather than remembered.
+
+Business errors are declared in `domain/users.errors.ts` with a stable code, a set of reasons and a
+details shape — and no HTTP status, because that is a transport decision. The endpoint that
+documents an error is also what maps its code to a status, so the documented status and the one the
+filter returns cannot disagree.
 
 ## Open questions
 

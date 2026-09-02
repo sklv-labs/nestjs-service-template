@@ -11,6 +11,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
+import { DomainErrorFilter } from './shared/http';
 import { ConfigService } from './config';
 
 async function bootstrap(): Promise<void> {
@@ -23,9 +24,12 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(config.globalPrefix);
   // Validates any @Body/@Query/@Param that carries a `schema`, and hands the handler the
   // parsed value. Strictness comes from the schemas themselves (`.strict()`), not from options.
-  app.useGlobalPipes(new StandardSchemaValidationPipe());
+  // validateCustomDecorators is required for @ReqHeaders — header schemas ride on a custom
+  // param decorator, which the pipe skips by default.
+  app.useGlobalPipes(new StandardSchemaValidationPipe({ validateCustomDecorators: true }));
   // Runs responses through the schema named by @SerializeOptions, which strips unknown keys.
   app.useGlobalInterceptors(new StandardSchemaSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalFilters(new DomainErrorFilter());
 
   if (config.docs.enabled) {
     const document = new DocumentBuilder()

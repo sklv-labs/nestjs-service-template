@@ -10,6 +10,26 @@ questions are listed in the README; if a change settles one, update that list.
 
 What follows is a description of how the code currently works, not a rulebook.
 
+## UI layer is transport-shaped
+
+`ui/http/` holds the HTTP contracts; `ui/rmq/` and `ui/queue/` belong beside it. Contracts are not
+a layer — they describe a boundary and belong to the transport that owns it. Do not reintroduce a
+top-level `contracts/` directory per feature.
+
+An endpoint is described once in `ui/http/endpoints/<name>.ts`: headers, params, query, body and
+every response. Controllers read schemas, types and docs from that descriptor via `ApiEndpoint`,
+`ReqBody`/`ReqQuery`/`ReqParams`/`ReqHeaders` and `BodyOf`/`QueryOf`/`ParamsOf`/`HeadersOf`. Do not
+inline a zod schema in a controller or repeat one in an `@Api*` decorator.
+
+Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
+`isoDate`, `oneOf`) rather than raw zod in contracts. They decide coercion, the branded-id cast and
+ISO strings once.
+
+Business errors are declared in `<feature>/domain/*.errors.ts` via `businessError` and carry no HTTP
+status. `httpError(status, error, …)` in an endpoint both documents the response and registers the
+code→status mapping the `DomainErrorFilter` uses, so the two cannot drift. Services `throw
+SomeError.raise(reason, details, message)` — never an `HttpException`.
+
 ## Current layering
 
 One directory per feature, four layers, dependencies pointing inward:
@@ -42,6 +62,13 @@ Constraints that will bite if you forget them:
 - **`@ApiBody` needs a raw schema** via `openApiSchema(...)`; `@ApiResponse` takes `standardSchema`.
 - **Response validation stops at non-objects.** A handler returning a primitive or `null` bypasses
   the serializer entirely, so the contract is not enforced for those.
+- **`@Headers` cannot take a schema.** Only `Body`, `Param`, `Query` and `RawBody` do. Header
+  contracts ride on a custom param decorator, which requires
+  `validateCustomDecorators: true` on the pipe — remove that and header validation silently stops.
+- **A method returning `never` does not narrow control flow.** `businessError().raise()` therefore
+  returns the error and the caller writes `throw`.
+- **Type examples as `z.input`, not `z.infer`.** Examples are wire JSON, and a branded id's input
+  type is a plain string — `z.infer` would demand a cast in every example.
 - Strictness lives in the schema (`.strict()`), not in pipe options.
 
 ## Mechanical constraints — these are not stylistic

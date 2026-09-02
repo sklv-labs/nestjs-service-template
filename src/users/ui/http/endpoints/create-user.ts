@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
 import { email, str } from '../../../../shared/contracts';
-import { body, endpoint, failure, headers, httpError, success } from '../../../../shared/http';
+import { endpoint, failure, httpError, req, success } from '../../../../shared/http';
 import { UserRegistrationFailed } from '../../../domain';
-import { userResponse } from '../responses';
+import type { CreateUserInput, CreateUserOutput } from '../../../operation';
+import { toUserResponse, userResponse } from '../responses';
 
 export const createUser = endpoint({
   summary: 'Register a user',
@@ -11,10 +12,10 @@ export const createUser = endpoint({
     'Validates the body, then applies registration rules. A 409 carries a stable errorCode ' +
     'with a reason that narrows which rule refused it.',
   request: {
-    headers: headers({
+    headers: req.headers({
       'x-request-id': str({ describe: 'Correlation id, echoed in logs' }).optional(),
     }),
-    body: body({
+    body: req.body({
       email: email({ describe: "The user's primary email address" }),
       password: str({ min: 12, max: 256, describe: 'Plaintext password, at least 12 characters' }),
     }),
@@ -25,6 +26,12 @@ export const createUser = endpoint({
       },
     },
   },
+  toInput: ({ body, headers }): CreateUserInput => ({
+    email: body.email,
+    password: body.password,
+    correlationId: headers['x-request-id'],
+  }),
+  toResponse: (output: CreateUserOutput) => toUserResponse(output.user),
   responses: [
     success(201, 'User registered', userResponse, {
       created: {

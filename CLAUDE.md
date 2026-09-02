@@ -10,6 +10,18 @@ questions are listed in the README; if a change settles one, update that list.
 
 What follows is a description of how the code currently works, not a rulebook.
 
+## Operation layer
+
+`<feature>/operation/*.handler.ts` — one handler per scenario, implementing
+`Handler<Input, Output>`. A handler must not import from `ui/`, must not know about HTTP status
+codes or message envelopes, and must not receive a request object. Input and output are plain
+types, not schemas: a handler runs inside the trust boundary, so re-validating what a transport
+already parsed is wasted work.
+
+Transports never orchestrate. A controller method validates, calls `endpoint.toInput(...)`,
+executes the handler, and calls `endpoint.toResponse(...)`. If a controller contains an `if` about
+business state, it belongs in a handler or a service.
+
 ## UI layer is transport-shaped
 
 `ui/http/` holds the HTTP contracts; `ui/rmq/` and `ui/queue/` belong beside it. Contracts are not
@@ -22,8 +34,12 @@ every response. Controllers read schemas, types and docs from that descriptor vi
 inline a zod schema in a controller or repeat one in an `@Api*` decorator.
 
 Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
-`isoDate`, `oneOf`) rather than raw zod in contracts. They decide coercion, the branded-id cast and
-ISO strings once.
+`isoDate`, `oneOf`) rather than raw zod in contracts, and `req.body` / `req.query` / `req.params` /
+`req.headers` for the request parts. The `req` namespace exists so the builders do not collide with
+the part names `toInput` destructures — do not re-export them as bare functions.
+
+Every endpoint declares `toInput` and `toResponse`. They are the only place a transport shape meets
+an operation shape; do not map fields inside a controller.
 
 Business errors are declared in `<feature>/domain/*.errors.ts` via `businessError` and carry no HTTP
 status. `httpError(status, error, …)` in an endpoint both documents the response and registers the

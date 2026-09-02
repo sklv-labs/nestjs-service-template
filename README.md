@@ -30,10 +30,12 @@ One directory per feature, four layers, dependencies pointing inward.
 src/shared/            reusable across features
 ├── contracts/         field builders (id, email, str, int, bool, isoDate), pagination
 ├── errors/            DomainError + businessError declaration
+├── operation/         Handler interface
 └── http/              endpoint descriptor, request builders, error filter
 src/users/
 ├── domain/            table, branded id, business errors — no framework, no HTTP
 ├── service/           port, in-memory adapter, business rules
+├── operation/         handlers — one scenario each, transport-agnostic
 ├── ui/
 │   └── http/          contracts live *inside* the transport that uses them
 │       ├── endpoints/ one file per endpoint: headers, params, query, body, responses
@@ -45,6 +47,38 @@ src/users/
 The UI layer is organised by transport, not by concern. `ui/http/` holds the HTTP contracts;
 `ui/rmq/` and `ui/queue/` would sit beside it with their own message contracts. Contracts are not a
 layer of their own — they describe a boundary, so they belong to the transport that owns it.
+
+The **operation layer** is where a request is actually handled. One handler per scenario, taking an
+input and returning an output, with no knowledge of headers, status codes or message envelopes:
+
+```ts
+export type CreateUserInput = { email: string; password: string; correlationId?: string };
+export type CreateUserOutput = { user: UserRow };
+
+export class CreateUserHandler implements Handler<CreateUserInput, CreateUserOutput> { … }
+```
+
+Each endpoint owns the translation in both directions, so a transport adds no logic of its own:
+
+```ts
+toInput: ({ body, headers }): CreateUserInput => ({
+  email: body.email,
+  password: body.password,
+  correlationId: headers['x-request-id'],
+}),
+toResponse: (output: CreateUserOutput) => toUserResponse(output.user),
+```
+
+which makes every controller method mechanical — validate, translate in, execute, translate out:
+
+```ts
+const output = await this.createUserHandler.execute(createUser.toInput({ body, headers }));
+
+return createUser.toResponse(output);
+```
+
+An RMQ consumer for the same scenario writes its own `toInput` from a message envelope and reuses
+the handler untouched.
 
 The `users` feature is a specimen, not a reference implementation. It exists to make the layering
 concrete enough to judge, and it is wired to the in-memory repository so it runs with no database.
@@ -87,8 +121,11 @@ filter returns cannot disagree.
 
 Things worth resolving before any of this hardens into a template:
 
-- Is a four-layer split justified at this size, or is `operation/` ceremony until there is a real
-  cross-service use case? It is currently a pass-through.
+- The handlers are thin — most are one service call. That is the intended seam for a welcome
+  email, a `UserRegistered` event, or provisioning, but until one of those exists the layer is
+  mostly indirection. Worth keeping only if those arrive.
+- Should `UsersService` survive now that handlers exist? Its rules could move into the handlers,
+  leaving `service/` as just the repository port.
 - Where does password hashing belong? The controller currently passes the raw value into
   `UsersService.create` as `passwordHash`, which is wrong on purpose — a placeholder for the
   decision.

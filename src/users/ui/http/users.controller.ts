@@ -1,24 +1,28 @@
-import { Controller, Get, HttpCode, Logger, Post, SerializeOptions } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post, SerializeOptions } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-import { offsetOf } from '../../../shared/contracts';
 import type { BodyOf, HeadersOf, ParamsOf, QueryOf } from '../../../shared/http';
 import { ApiEndpoint, ReqBody, ReqHeaders, ReqParams, ReqQuery } from '../../../shared/http';
-import { UsersService } from '../../service/users.service';
+import { CreateUserHandler, GetUserHandler, ListUsersHandler } from '../../operation';
 
 import { createUser, getUser, listUsers } from './endpoints';
-import { toUserResponse, userListResponse, userResponse } from './responses';
+import { userListResponse, userResponse } from './responses';
 
 /**
- * Each handler names its endpoint once. The decorators, the parameter schemas, the handler types
- * and the OpenAPI document all come from that descriptor, so none of them can drift apart.
+ * The HTTP transport. Each handler does exactly three things: validate through the endpoint's
+ * contracts, translate the request into the operation's input, and translate the output back.
+ *
+ * There is no business logic here and no shape-juggling — both translations live in the endpoint
+ * descriptor, so an RMQ consumer driving the same operations repeats none of it.
  */
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-  private readonly logger = new Logger(UsersController.name);
-
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly createUserHandler: CreateUserHandler,
+    private readonly getUserHandler: GetUserHandler,
+    private readonly listUsersHandler: ListUsersHandler,
+  ) {}
 
   @Post()
   @HttpCode(201)
@@ -28,35 +32,26 @@ export class UsersController {
     @ReqBody(createUser) body: BodyOf<typeof createUser>,
     @ReqHeaders(createUser) headers: HeadersOf<typeof createUser>,
   ) {
-    this.logger.log(`Registering ${body.email} (request ${headers['x-request-id'] ?? 'none'})`);
+    const output = await this.createUserHandler.execute(createUser.toInput({ body, headers }));
 
-    // Hashing is a placeholder — see the open questions in the README.
-    const user = await this.users.create({ email: body.email, passwordHash: body.password });
-
-    return toUserResponse(user);
+    return createUser.toResponse(output);
   }
 
   @Get()
   @ApiEndpoint(listUsers)
   @SerializeOptions({ schema: userListResponse })
   async list(@ReqQuery(listUsers) query: QueryOf<typeof listUsers>) {
-    const { rows, total } = await this.users.list({
-      offset: offsetOf(query),
-      limit: query.limit,
-      search: query.search,
-      sort: query.sort,
-    });
+    const output = await this.listUsersHandler.execute(listUsers.toInput({ query }));
 
-    return {
-      items: rows.map(toUserResponse),
-      meta: { page: query.page, limit: query.limit, total },
-    };
+    return listUsers.toResponse(output);
   }
 
   @Get(':id')
   @ApiEndpoint(getUser)
   @SerializeOptions({ schema: userResponse })
-  async getById(@ReqParams(getUser) { id }: ParamsOf<typeof getUser>) {
-    return toUserResponse(await this.users.getById(id));
+  async getById(@ReqParams(getUser) params: ParamsOf<typeof getUser>) {
+    const output = await this.getUserHandler.execute(getUser.toInput({ params }));
+
+    return getUser.toResponse(output);
   }
 }

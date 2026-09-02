@@ -1,13 +1,10 @@
 # nestjs-service-template
 
-Template for a NestJS service at sklv-labs. Postgres via drizzle, zod-validated configuration,
-OpenAPI docs, a health endpoint, and the layered module structure described below.
+A working NestJS 12 service used to try out the architecture and conventions for sklv-labs
+services. Nothing here is settled — the layering, the module boundaries and the rules below are
+what is currently being evaluated, and they are expected to change.
 
-Create a repository from this one with **Use this template** on GitHub, or:
-
-```bash
-gh repo create sklv-labs/<service> --template sklv-labs/nestjs-service-template --private
-```
+This is **not** a template to generate services from yet. Read it, run it, argue with it.
 
 ## Running it
 
@@ -25,10 +22,9 @@ pnpm start:dev
 
 Requires Node >= 24 and pnpm 11 (`corepack enable`).
 
-## Module layout
+## Current shape
 
-Each feature is one directory with four layers. Dependencies point inward: `ui` → `operation` →
-`service` → `domain`, and nothing points back out.
+One directory per feature, four layers, dependencies pointing inward.
 
 ```
 src/users/
@@ -41,30 +37,35 @@ src/users/
 └── ui/           controller and DTOs — the only layer that knows about HTTP
 ```
 
+The `users` feature is a specimen, not a reference implementation. It exists to make the layering
+concrete enough to judge.
+
 The port is an `abstract class` rather than an interface so it can be a DI token directly:
 
 ```ts
 providers: [{ provide: UsersRepository, useClass: DrizzleUsersRepository }];
 ```
 
-Swapping the adapter for a fake in a test needs no symbol and no module surgery.
+DTOs are the outward boundary — `UserDto.from()` builds responses explicitly, which is what keeps
+`passwordHash` out of them.
 
-DTOs are the outward boundary. `UserDto.from()` builds the response explicitly, which is what keeps
-`passwordHash` out of it — returning entities directly is how that leaks.
+## Open questions
 
-## Adding a feature module
+Things worth resolving before any of this hardens into a template:
 
-Copy `src/users/` and rename. Then register the module in `app.module.ts`, add the table to
-`src/db/schema.ts`, and run `pnpm db:generate`.
-
-Keep `domain/` free of `@nestjs/*` imports. It is the layer you will want to reuse or test without
-booting Nest.
+- Is a four-layer split justified at this size, or is `operation/` ceremony until there is a real
+  cross-service use case? It is currently a pass-through.
+- Where does password hashing belong? The controller currently passes the raw value into
+  `UsersService.create` as `passwordHash`, which is wrong on purpose — a placeholder for the
+  decision.
+- Does the port/adapter split earn itself when there is exactly one adapter?
+- Should `domain/` own the drizzle table definitions, or is that infrastructure leaking inward?
 
 ## Configuration
 
 `src/config/env.schema.ts` extends `baseEnvSchema` from `@sklv-labs/nestjs-config`, which supplies
-`NODE_ENV`, `PORT`, `HOST` and the npm package variables. Add your own keys there, then expose them
-as grouped properties on `ConfigService` so callers never read `process.env` or an env key by name.
+`NODE_ENV`, `PORT`, `HOST` and the npm package variables. Add keys there, then expose them as
+grouped properties on `ConfigService` so callers never read `process.env` directly.
 
 Use `z.coerce` for numbers — environment variables arrive as strings.
 
@@ -74,37 +75,35 @@ process at boot with every failing key listed, rather than surfacing on the firs
 ## Database
 
 drizzle with `casing: 'snake_case'`, so `passwordHash` in TypeScript is `password_hash` in
-Postgres. Tables live in `<feature>/domain/schemas/*.schema.ts`; `drizzle.config.ts` globs them, so
-a new table is picked up without registering it anywhere.
+Postgres. Tables live in `<feature>/domain/schemas/*.schema.ts`; `drizzle.config.ts` globs them.
 
 `primaryUuid()` in `src/db/columns.ts` is a branded UUID v7 primary key — time-ordered, so the
 index does not fragment the way v4 does. `timestamps` supplies `created_at` and `updated_at`.
 
 `pnpm db:push` is for local iteration. Use `db:generate` + `db:migrate` for anything shared.
 
-## What is deliberately missing
+## What is missing, and why
 
 The structured logger, error taxonomy, transaction propagation, CLS context and OpenAPI helpers
-used to come from `@sklv-labs/ts-nestjs-*` packages. Those were retired, so this template uses the
-framework directly: Nest's `Logger`, its built-in HTTP exceptions, `@nestjs/swagger` and
-`@nestjs/terminus`.
+used to come from `@sklv-labs/ts-nestjs-*` packages. Those were retired, so this uses the framework
+directly: Nest's `Logger`, its built-in HTTP exceptions, `@nestjs/swagger` and `@nestjs/terminus`.
 
-Two consequences worth knowing:
+Two consequences:
 
 - **No `@Transactional()`.** Use `db.transaction(tx => ...)` and pass the handle through.
 - **No request-scoped context**, so log lines carry no correlation id.
 
-Both are the seam to replace when those packages are rewritten.
+Both are seams for the rewritten packages, and how they land will change the shape here.
 
-`.oxlintrc.json` also disables `typescript/consistent-type-imports` locally. That belongs in
-`@sklv-labs/dev-configs/oxlint/nestjs.json` and has been fixed there — drop the local override once
+`.oxlintrc.json` disables `typescript/consistent-type-imports` locally. That belongs in
+`@sklv-labs/dev-configs/oxlint/nestjs.json` and is fixed there — drop the local override once
 `dev-configs` > 0.2.0 is released.
 
 ## Container
 
 ```bash
-docker build -t <service> .
-docker run --rm -p 3000:3000 --env-file .env <service>
+docker build -t service .
+docker run --rm -p 3000:3000 --env-file .env service
 ```
 
 The image runs `node dist/main.js` rather than a package script, and installs with `--prod` in a

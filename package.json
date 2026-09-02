@@ -2,7 +2,7 @@
   "name": "nestjs-service-template",
   "version": "0.0.0",
   "private": true,
-  "description": "Template for a NestJS service at sklv-labs",
+  "description": "Playground for working out the NestJS service architecture at sklv-labs",
   "author": "sklv-labs",
   "license": "MIT",
   "packageManager": "pnpm@11.25.0",
@@ -61,6 +61,7 @@
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2",
+    "typescript-editor": "npm:typescript@^6.0.3",
     "vitest": "^4.1.11"
   },
   "lint-staged": {

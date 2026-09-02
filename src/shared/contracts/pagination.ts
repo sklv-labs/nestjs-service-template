@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { int } from './fields';
 
 export const pageQuery = {
-  page: int({ min: 1, describe: '1-based page number' }).default(1),
-  limit: int({ min: 1, max: 100, describe: 'Items per page, max 100' }).default(20),
+  page: int('1-based page number', { min: 1 }).default(1),
+  limit: int('Items per page, max 100', { min: 1, max: 100 }).default(20),
 };
 
 export type PageQuery = z.infer<z.ZodObject<typeof pageQuery>>;

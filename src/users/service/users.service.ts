@@ -18,7 +18,7 @@ export class UsersService {
     const user = await this.users.findById(id);
 
     if (!user) {
-      throw UserNotFound.raise('BY_ID', { id }, `User ${id} not found`);
+      throw UserNotFound.raise('BY_ID', { id });
     }
 
     return user;
@@ -36,19 +36,11 @@ export class UsersService {
     const domain = props.email.split('@')[1] ?? '';
 
     if (BLOCKED_DOMAINS.has(domain)) {
-      throw UserRegistrationFailed.raise(
-        'EMAIL_DOMAIN_BLOCKED',
-        { email: props.email },
-        'Registrations from this email domain are not accepted',
-      );
+      throw UserRegistrationFailed.raise('EMAIL_DOMAIN_BLOCKED', { email: props.email });
     }
 
     if (await this.users.findByEmail(props.email)) {
-      throw UserRegistrationFailed.raise(
-        'EMAIL_ALREADY_REGISTERED',
-        { email: props.email },
-        'A user with this email already exists',
-      );
+      throw UserRegistrationFailed.raise('EMAIL_ALREADY_REGISTERED', { email: props.email });
     }
 
     const user = await this.users.create(props);

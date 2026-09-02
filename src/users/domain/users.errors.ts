@@ -10,12 +10,17 @@ import { businessError } from '../../shared/errors';
 
 export const UserRegistrationFailed = businessError({
   code: 'USER_REGISTRATION_FAILED',
-  reasons: ['EMAIL_ALREADY_REGISTERED', 'EMAIL_DOMAIN_BLOCKED'],
   details: z.object({ email: email() }),
+  reasons: {
+    EMAIL_ALREADY_REGISTERED: 'A user with this email already exists',
+    EMAIL_DOMAIN_BLOCKED: 'Registrations from this email domain are not accepted',
+  },
 });
 
 export const UserNotFound = businessError({
   code: 'USER_NOT_FOUND',
-  reasons: ['BY_ID'],
   details: z.object({ id: z.string() }),
+  reasons: {
+    BY_ID: 'No user exists with that id',
+  },
 });

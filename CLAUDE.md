@@ -28,18 +28,25 @@ business state, it belongs in a handler or a service.
 a layer — they describe a boundary and belong to the transport that owns it. Do not reintroduce a
 top-level `contracts/` directory per feature.
 
-An endpoint is described once in `ui/http/endpoints/<name>.ts`: headers, params, query, body and
-every response. Controllers read schemas, types and docs from that descriptor via `ApiEndpoint`,
+An endpoint is described once in `ui/http/endpoints/<name>.ts`, as a builder chain:
+`endpoint(summary).about().headers().body().example().input().output().ok().fails().error()`.
+Controllers read schemas, types and docs from it via `ApiEndpoint`,
 `ReqBody`/`ReqQuery`/`ReqParams`/`ReqHeaders` and `BodyOf`/`QueryOf`/`ParamsOf`/`HeadersOf`. Do not
 inline a zod schema in a controller or repeat one in an `@Api*` decorator.
 
-Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
-`isoDate`, `oneOf`) rather than raw zod in contracts, and `req.body` / `req.query` / `req.params` /
-`req.headers` for the request parts. The `req` namespace exists so the builders do not collide with
-the part names `toInput` destructures — do not re-export them as bare functions.
+`.input()` must come after the request parts it destructures — the accumulated type enforces this.
+`.error()` also registers the code→status mapping and generates an example per reason, so never
+hand-write per-reason examples.
 
-Every endpoint declares `toInput` and `toResponse`. They are the only place a transport shape meets
+Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
+`isoDate`, `oneOf`) rather than raw zod in contracts. The description is the first argument.
+
+Every endpoint declares `.input()` and `.output()`. They are the only place a transport shape meets
 an operation shape; do not map fields inside a controller.
+
+Business error messages live on the reason declaration in `<feature>/domain/*.errors.ts`, so
+`raise(reason, details)` takes no message. Adding a reason is not a breaking change; adding a code
+is.
 
 Business errors are declared in `<feature>/domain/*.errors.ts` via `businessError` and carry no HTTP
 status. `httpError(status, error, …)` in an endpoint both documents the response and registers the
@@ -85,6 +92,13 @@ Constraints that will bite if you forget them:
   returns the error and the caller writes `throw`.
 - **Type examples as `z.input`, not `z.infer`.** Examples are wire JSON, and a branded id's input
   type is a plain string — `z.infer` would demand a cast in every example.
+- **`declaration` is off in this tsconfig, deliberately.** The builder accumulates a generic type
+  per call, and emitting `.d.ts` makes TypeScript serialize it — which fails with TS7056 ("inferred
+  type exceeds the maximum length the compiler will serialize") and TS4094 on the private fields.
+  This is an application, so declarations buy nothing. Turning them back on breaks the build.
+- **`BusinessError` is not usable as a parameter type.** `raise` accepts only that error's own
+  reasons, so a specific error is not assignable to a wider one. Anything that documents rather
+  than raises takes `BusinessErrorShape`, which drops `raise`.
 - Strictness lives in the schema (`.strict()`), not in pipe options.
 
 ## Mechanical constraints — these are not stylistic

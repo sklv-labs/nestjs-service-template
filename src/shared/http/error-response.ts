@@ -3,8 +3,8 @@ import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { z } from 'zod';
 
-import type { BusinessError } from '../errors';
-import { isDomainError } from '../errors';
+import type { BusinessErrorShape } from '../errors';
+import { isDomainError, reasonsOf } from '../errors';
 
 /** The error envelope, matching what Nest itself produces plus the business fields. */
 export const errorResponse = z.object({
@@ -17,35 +17,48 @@ export const errorResponse = z.object({
 export type ErrorResponse = z.infer<typeof errorResponse>;
 
 /** Renders a business error as its response contract, for documentation. */
-export const businessErrorResponse = <
-  Code extends string,
-  Reasons extends readonly [string, ...string[]],
-  Details extends z.ZodType,
->(
-  status: number,
-  error: BusinessError<Code, Reasons, Details>,
-) =>
+export const businessErrorResponse = (status: number, error: BusinessErrorShape) =>
   errorResponse.extend({
     statusCode: z.literal(status),
     errorCode: z.literal(error.code),
-    reason: z.enum(error.reasons).describe('Which of the cases behind this code occurred'),
+    reason: z.enum(reasonsOf(error)).describe('Which of the cases behind this code occurred'),
     details: error.details,
   });
+
+/**
+ * One documented example per reason, built from the messages on the error declaration. The
+ * alternative is hand-writing a near-identical block per reason and keeping the messages in sync
+ * with the domain by hand.
+ */
+export const businessErrorExamples = (
+  status: number,
+  error: BusinessErrorShape,
+  details: unknown,
+): Record<string, { summary: string; value: unknown }> =>
+  Object.fromEntries(
+    Object.entries(error.reasons).map(([reason, message]) => [
+      reason,
+      {
+        summary: message,
+        value: { statusCode: status, message, errorCode: error.code, reason, details },
+      },
+    ]),
+  );
 
 const statusByCode = new Map<string, number>();
 
 /**
- * Declares which HTTP status a business error maps to. Called from `ui/http`, because the status
- * is a transport decision — the domain does not know it. `httpError()` in `endpoint.ts` registers
- * the mapping as a side effect of documenting the response, so the two cannot disagree.
+ * Declares which HTTP status a business error maps to. Called from `ui/http`, because the status is
+ * a transport decision. The builder's `.error()` registers it while documenting the response, so
+ * the documented status and the one the filter returns cannot disagree.
  */
 export const mapErrorStatus = (code: string, status: number): void => {
   statusByCode.set(code, status);
 };
 
 /**
- * Turns a `DomainError` into its HTTP response. Without this, a raised business error would
- * surface as a bare 500 — nothing else in the chain knows what a domain error is.
+ * Turns a `DomainError` into its HTTP response. Without this a raised business error would surface
+ * as a bare 500 — nothing else in the chain knows what a domain error is.
  */
 @Catch()
 export class DomainErrorFilter implements ExceptionFilter {
@@ -64,15 +77,15 @@ export class DomainErrorFilter implements ExceptionFilter {
         );
       }
 
-      const body = {
-        statusCode: status ?? HttpStatus.INTERNAL_SERVER_ERROR,
+      const statusCode = status ?? HttpStatus.INTERNAL_SERVER_ERROR;
+
+      response.status(statusCode).json({
+        statusCode,
         message: exception.message,
         errorCode: exception.code,
         reason: exception.reason,
         details: exception.details,
-      };
-
-      response.status(body.statusCode).json(body);
+      });
       return;
     }
 

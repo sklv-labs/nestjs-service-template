@@ -8,10 +8,10 @@ import type { UserId, UserRow } from '../../domain';
  * added here appears everywhere it should and nowhere it should not.
  */
 export const userResponse = z.object({
-  id: id<UserId>({ describe: 'Identifier of the user' }),
-  email: email({ describe: "The user's primary email address" }),
-  createdAt: isoDate({ describe: 'When the user was created' }),
-  updatedAt: isoDate({ describe: 'When the user was last updated' }),
+  id: id<UserId>('Identifier of the user'),
+  email: email("The user's primary email address"),
+  createdAt: isoDate('When the user was created'),
+  updatedAt: isoDate('When the user was last updated'),
 });
 
 export type UserResponse = z.infer<typeof userResponse>;
@@ -23,7 +23,7 @@ export const userListResponse = paginated(userListItemResponse);
 
 /** Extended with fields only an owner or admin may see. Composition, not a parallel contract. */
 export const userDetailResponse = userResponse.extend({
-  lastSeenAt: isoDate({ describe: 'When the user was last active' }).nullable(),
+  lastSeenAt: isoDate('When the user was last active').nullable(),
 });
 
 /**

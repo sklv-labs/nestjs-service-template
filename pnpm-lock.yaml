@@ -27,8 +27,8 @@ importers:
         specifier: ^0.1.1
         version: 0.1.1
       '@sklv-labs/nestjs-config':
-        specifier: ^0.2.0
-        version: 0.2.0(@nestjs/common@12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(reflect-metadata@0.2.2)
+        specifier: ^0.2.1
+        version: 0.2.1(@nestjs/common@12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(reflect-metadata@0.2.2)
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
@@ -55,8 +55,8 @@ importers:
         specifier: ^21.2.2
         version: 21.2.2
       '@sklv-labs/dev-configs':
-        specifier: ^0.2.0
-        version: 0.2.0(@commitlint/config-conventional@21.2.2)(oxlint@1.81.0(oxlint-tsgolint@7.0.2001))(prettier@3.9.6)(typescript@7.0.2)
+        specifier: ^0.2.1
+        version: 0.2.1(@commitlint/config-conventional@21.2.2)(oxlint@1.81.0(oxlint-tsgolint@7.0.2001))(prettier@3.9.6)(typescript@7.0.2)
       '@types/node':
         specifier: ^26.4.1
         version: 26.4.1
@@ -1074,8 +1074,8 @@ packages:
     resolution: {integrity: sha512-Hm0zX9N6a5XV9Tq8pZgmjWyd/n6sqwN5hYqTwJqLLxTSkOwlsVatFnvslTi4xv+Ku9/n+7K4h2G0KdhrtiTrKQ==}
     engines: {node: '>=24.0.0'}
 
-  '@sklv-labs/dev-configs@0.2.0':
-    resolution: {integrity: sha512-vN4vffpwBfTWoT3GY/9YZEYgZIfdwEkKTkpHT1bxrPihDUwaUo9aT4BC7vUcD2+WFUk0M1aWkwHKXF0vLrc58g==}
+  '@sklv-labs/dev-configs@0.2.1':
+    resolution: {integrity: sha512-wp17sSxcqHWXN5vSv9KXQmcijPDto12pQ1HKotJKERcdyaAC/eYWWZb4mrVaJe6GoCI2NVRVOR1q+2pQ7HmLDQ==}
     engines: {node: '>=24.0.0'}
     peerDependencies:
       '@commitlint/config-conventional': ^21.0.0
@@ -1092,8 +1092,8 @@ packages:
       typescript:
         optional: true
 
-  '@sklv-labs/nestjs-config@0.2.0':
-    resolution: {integrity: sha512-Bs1TU4rAoNoPUi87yrzlwbn8nqLMK2KltOTyFF7D+4WUDD+vxBDGhAb0wBymqGxzmhQ3Tiiyr48w5u8+7QnXJA==}
+  '@sklv-labs/nestjs-config@0.2.1':
+    resolution: {integrity: sha512-0y9OtKXeSr7sGWDg2qUiMK/0shlEWv2df78BX4gnadAiME3vwOFqNhHTGOWMShVjGh8t34IOW7/Pnspl+2qlnQ==}
     engines: {node: '>=24.0.0'}
     peerDependencies:
       '@nestjs/common': ^12.0.0
@@ -3080,14 +3080,14 @@ snapshots:
       uuid: 14.0.2
       zod: 4.5.4
 
-  '@sklv-labs/dev-configs@0.2.0(@commitlint/config-conventional@21.2.2)(oxlint@1.81.0(oxlint-tsgolint@7.0.2001))(prettier@3.9.6)(typescript@7.0.2)':
+  '@sklv-labs/dev-configs@0.2.1(@commitlint/config-conventional@21.2.2)(oxlint@1.81.0(oxlint-tsgolint@7.0.2001))(prettier@3.9.6)(typescript@7.0.2)':
     optionalDependencies:
       '@commitlint/config-conventional': 21.2.2
       oxlint: 1.81.0(oxlint-tsgolint@7.0.2001)
       prettier: 3.9.6
       typescript: 7.0.2
 
-  '@sklv-labs/nestjs-config@0.2.0(@nestjs/common@12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(reflect-metadata@0.2.2)':
+  '@sklv-labs/nestjs-config@0.2.1(@nestjs/common@12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(reflect-metadata@0.2.2)':
     dependencies:
       '@nestjs/common': 12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
       '@sklv-labs/core': 0.1.1

@@ -40,6 +40,8 @@ Constraints that will bite if you forget them:
 - **`z.infer` is the output type.** Request examples must be typed `z.input`.
 - **Error responses skip the serializer.** Error contracts type and document; they do not enforce.
 - **`@ApiBody` needs a raw schema** via `openApiSchema(...)`; `@ApiResponse` takes `standardSchema`.
+- **Response validation stops at non-objects.** A handler returning a primitive or `null` bypasses
+  the serializer entirely, so the contract is not enforced for those.
 - Strictness lives in the schema (`.strict()`), not in pipe options.
 
 ## Mechanical constraints — these are not stylistic

@@ -108,9 +108,9 @@ Two consequences:
 
 Both are seams for the rewritten packages, and how they land will change the shape here.
 
-`.oxlintrc.json` disables `typescript/consistent-type-imports` locally. That belongs in
-`@sklv-labs/dev-configs/oxlint/nestjs.json` and is fixed there — drop the local override once
-`dev-configs` > 0.2.0 is released.
+`typescript/consistent-type-imports` is disabled in `@sklv-labs/dev-configs/oxlint/nestjs.json`,
+because Nest reads constructor parameter types from `design:paramtypes` at runtime and the rule's
+fix erases that metadata.
 
 ## Container
 

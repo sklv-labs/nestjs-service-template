@@ -23,6 +23,25 @@ The `users` feature is a specimen for judging the layering, not a reference to c
 has a deliberate placeholder: the controller passes a raw password through as `passwordHash`,
 standing in for a hashing decision that has not been made.
 
+## Schema contracts
+
+The UI layer uses Zod schemas as contracts, one per boundary, projected as runtime validation
+(`@Body({ schema })` + `StandardSchemaValidationPipe`), TypeScript types (`z.infer`) and OpenAPI
+(Nest reads `~standard.jsonSchema` — no converter needed). There are no DTO classes and no
+class-validator. The reasoning is in
+[the guideline](https://github.com/sklv-labs/guidelines/blob/main/ts/patterns/schema-contracts.md).
+
+Constraints that will bite if you forget them:
+
+- **`z.date()` throws** during OpenAPI generation. Boundary timestamps are `z.iso.datetime()`.
+- **`.transform()` breaks the output projection**, so it is safe on request contracts and fatal on
+  response contracts. Branded ids therefore use the `brandedUuid()` cast in `src/contracts/branded.ts`,
+  not `.transform(asUuid)`.
+- **`z.infer` is the output type.** Request examples must be typed `z.input`.
+- **Error responses skip the serializer.** Error contracts type and document; they do not enforce.
+- **`@ApiBody` needs a raw schema** via `openApiSchema(...)`; `@ApiResponse` takes `standardSchema`.
+- Strictness lives in the schema (`.strict()`), not in pipe options.
+
 ## Mechanical constraints — these are not stylistic
 
 These are runtime facts, and they hold whatever the architecture turns into.

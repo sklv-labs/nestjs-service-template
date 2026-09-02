@@ -27,18 +27,26 @@ Requires Node >= 24 and pnpm 11 (`corepack enable`).
 One directory per feature, four layers, dependencies pointing inward.
 
 ```
+src/contracts/    primitives shared across features — branded ids, pagination, error envelope
 src/users/
-├── domain/       tables, branded ids, domain types — no framework imports
+├── contracts/    transport contracts: request, response, query, errors, typed examples
+├── domain/       drizzle tables and domain types — no framework imports
 ├── service/
-│   ├── abstracts/          the repository port, an abstract class
-│   ├── users-repository/   the drizzle adapter implementing it
-│   └── users-service/      business logic, depends on the port
+│   ├── abstracts/               the repository port, an abstract class
+│   ├── in-memory-repository/    the bound adapter — no Postgres needed
+│   ├── users-repository/        the drizzle adapter, same port, one line to swap
+│   └── users-service/           business rules, depends on the port
 ├── operation/    use cases spanning several services; empty until one appears
-└── ui/           controller and DTOs — the only layer that knows about HTTP
+└── ui/           controller — the only layer that knows about HTTP
 ```
 
 The `users` feature is a specimen, not a reference implementation. It exists to make the layering
-concrete enough to judge.
+concrete enough to judge, and it is wired to the in-memory repository so it runs with no database.
+
+Its UI layer is built on **schema contracts**: one Zod schema per boundary, projected as runtime
+validation, a TypeScript type and OpenAPI. There are no DTO classes and no class-validator. See
+[the guideline](https://github.com/sklv-labs/guidelines/blob/main/ts/patterns/schema-contracts.md)
+for the reasoning and the constraints that shape it.
 
 The port is an `abstract class` rather than an interface so it can be a DI token directly:
 
@@ -46,8 +54,8 @@ The port is an `abstract class` rather than an interface so it can be a DI token
 providers: [{ provide: UsersRepository, useClass: DrizzleUsersRepository }];
 ```
 
-DTOs are the outward boundary — `UserDto.from()` builds responses explicitly, which is what keeps
-`passwordHash` out of them.
+`@SerializeOptions({ schema: UserResponseSchema })` is what keeps `passwordHash` out of responses:
+Zod strips keys the contract does not name, so the omission is enforced rather than remembered.
 
 ## Open questions
 
@@ -58,6 +66,11 @@ Things worth resolving before any of this hardens into a template:
 - Where does password hashing belong? The controller currently passes the raw value into
   `UsersService.create` as `passwordHash`, which is wrong on purpose — a placeholder for the
   decision.
+- Should error responses go through an exception filter that parses them against their contract?
+  Today error schemas document and type the shape but do not enforce it, because exceptions bypass
+  the serializer.
+- Is `toResponse` worth keeping now that the response schema strips fields anyway, or is the
+  explicit mapper still the clearer place to convert `Date` to ISO?
 - Does the port/adapter split earn itself when there is exactly one adapter?
 - Should `domain/` own the drizzle table definitions, or is that infrastructure leaking inward?
 

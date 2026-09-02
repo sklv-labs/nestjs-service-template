@@ -1,8 +1,12 @@
 // oxlint-disable-next-line import/no-unassigned-import -- side effect is the point; must stay first
 import './bootstrap-env';
 
-import { Logger, ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import {
+  Logger,
+  StandardSchemaSerializerInterceptor,
+  StandardSchemaValidationPipe,
+} from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
@@ -17,9 +21,11 @@ async function bootstrap(): Promise<void> {
   app.use(helmet());
   app.enableShutdownHooks();
   app.setGlobalPrefix(config.globalPrefix);
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-  );
+  // Validates any @Body/@Query/@Param that carries a `schema`, and hands the handler the
+  // parsed value. Strictness comes from the schemas themselves (`.strict()`), not from options.
+  app.useGlobalPipes(new StandardSchemaValidationPipe());
+  // Runs responses through the schema named by @SerializeOptions, which strips unknown keys.
+  app.useGlobalInterceptors(new StandardSchemaSerializerInterceptor(app.get(Reflector)));
 
   if (config.docs.enabled) {
     const document = new DocumentBuilder()

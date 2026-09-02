@@ -1,0 +1,1 @@
+{ "extends": ["@sklv-labs/dev-configs/commitlint"] }

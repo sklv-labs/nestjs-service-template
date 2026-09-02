@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+drizzle
+.git
+.github
+.husky
+.claude
+*.tsbuildinfo
+.env
+.env.*
+!.env.example

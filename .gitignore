@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+
+.idea/
+*.swp
+.DS_Store
+
+.cache/
+.temp/
+.tmp/
+
+# Claude Code — personal overrides
+.claude/settings.local.json

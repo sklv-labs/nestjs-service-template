@@ -1,12 +1,11 @@
-import { Controller, Get, HttpCode, Post, SerializeOptions } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import type { BodyOf, HeadersOf, ParamsOf, QueryOf } from '../../../shared/http';
-import { ApiEndpoint, ReqBody, ReqHeaders, ReqParams, ReqQuery } from '../../../shared/http';
+import { ReqBody, ReqHeaders, ReqParams, ReqQuery, UseEndpoint } from '../../../shared/http';
 import { CreateUserHandler, GetUserHandler, ListUsersHandler } from '../../operation';
 
 import { createUser, getUser, listUsers } from './endpoints';
-import { userListResponse, userResponse } from './responses';
 
 /**
  * The HTTP transport. Each handler does exactly three things: validate through the endpoint's
@@ -25,9 +24,7 @@ export class UsersController {
   ) {}
 
   @Post()
-  @HttpCode(201)
-  @ApiEndpoint(createUser)
-  @SerializeOptions({ schema: userResponse })
+  @UseEndpoint(createUser)
   async create(
     @ReqBody(createUser) body: BodyOf<typeof createUser>,
     @ReqHeaders(createUser) headers: HeadersOf<typeof createUser>,
@@ -38,8 +35,7 @@ export class UsersController {
   }
 
   @Get()
-  @ApiEndpoint(listUsers)
-  @SerializeOptions({ schema: userListResponse })
+  @UseEndpoint(listUsers)
   async list(@ReqQuery(listUsers) query: QueryOf<typeof listUsers>) {
     const output = await this.listUsersHandler.execute(listUsers.toInput({ query }));
 
@@ -47,8 +43,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @ApiEndpoint(getUser)
-  @SerializeOptions({ schema: userResponse })
+  @UseEndpoint(getUser)
   async getById(@ReqParams(getUser) params: ParamsOf<typeof getUser>) {
     const output = await this.getUserHandler.execute(getUser.toInput({ params }));
 

@@ -1,4 +1,4 @@
-import { applyDecorators, Body, Param, Query } from '@nestjs/common';
+import { applyDecorators, Body, HttpCode, Param, Query, SerializeOptions } from '@nestjs/common';
 import { ApiBody, ApiHeaders, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { z } from 'zod';
 
@@ -131,8 +131,24 @@ const descriptionOf = (field: z.ZodType): string | undefined =>
   (field as unknown as { def?: { innerType?: { description?: string } } }).def?.innerType
     ?.description;
 
-/** Applies an endpoint's documentation. Replaces a stack of six `@Api*` decorators. */
-export const ApiEndpoint = (e: DocumentedEndpoint) => {
+/**
+ * The response the endpoint succeeds with. Its schema is the serialization contract and its status
+ * is the status to return, so neither needs restating on the controller.
+ *
+ * An endpoint with several 2xx entries is ambiguous; the first wins, which is why declaring more
+ * than one success response is a smell rather than a feature.
+ */
+const successResponse = (e: DocumentedEndpoint): ResponseSpec | undefined =>
+  e.responses.find((r) => r.status >= 200 && r.status < 300);
+
+/**
+ * Wires an endpoint to a controller method: its documentation, its response contract and its
+ * success status.
+ *
+ * Everything comes from the descriptor, so a handler names its endpoint once. Restating the
+ * response schema in `@SerializeOptions` or the status in `@HttpCode` is how they drift.
+ */
+export const UseEndpoint = (e: DocumentedEndpoint) => {
   const decorators = [
     ApiOperation({ summary: e.summary, description: e.description }),
     ...e.responses.map((r) =>
@@ -166,6 +182,16 @@ export const ApiEndpoint = (e: DocumentedEndpoint) => {
         })),
       ),
     );
+  }
+
+  const ok = successResponse(e);
+
+  if (ok) {
+    decorators.push(HttpCode(ok.status));
+
+    if (ok.schema) {
+      decorators.push(SerializeOptions({ schema: ok.schema }));
+    }
   }
 
   return applyDecorators(...decorators);

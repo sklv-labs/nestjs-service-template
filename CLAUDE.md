@@ -30,9 +30,15 @@ top-level `contracts/` directory per feature.
 
 An endpoint is described once in `ui/http/endpoints/<name>.ts` as a plain object passed to
 `endpoint({ … })`: `summary`, `request`, `toInput`, `toResponse`, `responses`. Controllers read
-schemas, types and docs from it via `ApiEndpoint`, `ReqBody`/`ReqQuery`/`ReqParams`/`ReqHeaders`
+schemas, types and docs from it via `UseEndpoint`, `ReqBody`/`ReqQuery`/`ReqParams`/`ReqHeaders`
 and `BodyOf`/`QueryOf`/`ParamsOf`/`HeadersOf`. Do not inline a zod schema in a controller or repeat
 one in an `@Api*` decorator.
+
+`UseEndpoint` applies the documentation **and** derives `@SerializeOptions` and `@HttpCode` from the
+endpoint's success response — the first 2xx entry in `responses`. A handler therefore carries two
+decorators: the route and `UseEndpoint`. Never restate the response schema or the status on the
+controller; that is how they drift. Declaring more than one 2xx response makes the choice
+ambiguous, and the first wins.
 
 A builder-chain version of this was tried and reverted: it accumulates a generic per call, which
 forces `declaration: false` (TS7056 — inferred type exceeds what the compiler will serialize) and
@@ -46,7 +52,7 @@ Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `i
 parts use `req.body` / `req.query` / `req.params` / `req.headers`; the namespace exists so the
 builders do not collide with the part names `toInput` destructures.
 
-Every endpoint declares `.input()` and `.output()`. They are the only place a transport shape meets
+Every endpoint declares `toInput` and `toResponse`. They are the only place a transport shape meets
 an operation shape; do not map fields inside a controller.
 
 Business error messages live on the reason declaration in `<feature>/domain/*.errors.ts`, so
@@ -56,7 +62,11 @@ is.
 Business errors are declared in `<feature>/domain/*.errors.ts` via `businessError` and carry no HTTP
 status. `httpError(status, error, …)` in an endpoint both documents the response and registers the
 code→status mapping the `DomainErrorFilter` uses, so the two cannot drift. Services `throw
-SomeError.raise(reason, details, message)` — never an `HttpException`.
+SomeError.raise(reason, details)` — never an `HttpException`.
+
+An error raised with no endpoint documenting it degrades to a 500 with a logged warning. Because
+`httpError` returns a plain value, hoist shared ones into a module-level const and reuse them across
+endpoints rather than repeating the status, example and description.
 
 ## Current layering
 
@@ -89,7 +99,11 @@ Constraints that will bite if you forget them:
 - **Error responses skip the serializer.** Error contracts type and document; they do not enforce.
 - **`@ApiBody` needs a raw schema** via `openApiSchema(...)`; `@ApiResponse` takes `standardSchema`.
 - **Response validation stops at non-objects.** A handler returning a primitive or `null` bypasses
-  the serializer entirely, so the contract is not enforced for those.
+  the serializer, so the contract is not enforced — while the documentation still claims it. Always
+  return an object; raise a domain error instead of returning `null`.
+- **For a handler returning a top-level array, the serialization schema is the ITEM contract.** The
+  interceptor maps over the array and validates each element against the schema it was given, so
+  `z.array(item)` makes every item get checked against an array contract and fails with a 500.
 - **`@Headers` cannot take a schema.** Only `Body`, `Param`, `Query` and `RawBody` do. Header
   contracts ride on a custom param decorator, which requires
   `validateCustomDecorators: true` on the pipe — remove that and header validation silently stops.

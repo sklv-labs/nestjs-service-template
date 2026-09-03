@@ -49,8 +49,11 @@ const statusByCode = new Map<string, number>();
 
 /**
  * Declares which HTTP status a business error maps to. Called from `ui/http`, because the status is
- * a transport decision. The builder's `.error()` registers it while documenting the response, so
- * the documented status and the one the filter returns cannot disagree.
+ * a transport decision. `httpError()` registers it while documenting the response, so the
+ * documented status and the one the filter returns cannot disagree.
+ *
+ * The weakness: an error whose endpoint never calls `httpError()` has no entry, and the filter
+ * degrades it to a 500 with a logged warning rather than failing loudly.
  */
 export const mapErrorStatus = (code: string, status: number): void => {
   statusByCode.set(code, status);

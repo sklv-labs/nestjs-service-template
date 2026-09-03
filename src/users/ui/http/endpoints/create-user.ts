@@ -10,13 +10,16 @@ export const createUser = endpoint({
 
   request: {
     headers: req.headers({
-      'x-request-id': str('Correlation id, echoed in logs').optional(),
+      'x-request-id': str('Correlation id, echoed in logs', { example: 'req-7f3a91' }).optional(),
     }),
     body: req.body({
-      email: email("The user's primary email address"),
-      password: str('Plaintext password, at least 12 characters', { min: 12, max: 256 }),
+      email: email("The user's primary email address", { example: 'alex@example.com' }),
+      password: str('Plaintext password, at least 12 characters', {
+        min: 12,
+        max: 256,
+        example: 'correct-horse-battery-staple',
+      }),
     }),
-    example: { email: 'alex@example.com', password: 'correct-horse-battery-staple' },
   },
 
   toInput: ({ body, headers }): CreateUserInput => ({
@@ -27,12 +30,7 @@ export const createUser = endpoint({
   toResponse: (out: CreateUserOutput) => toUserResponse(out.user),
 
   responses: [
-    success(201, userResponse, 'User registered', {
-      id: '01930000-0000-7000-8000-000000000000',
-      email: 'alex@example.com',
-      createdAt: '2026-09-03T10:00:00.000Z',
-      updatedAt: '2026-09-03T10:00:00.000Z',
-    }),
+    success(201, userResponse, 'User registered'),
     failure(400, 'Body failed contract validation'),
     httpError(409, UserRegistrationFailed, { email: 'alex@example.com' }, 'Registration refused'),
   ],

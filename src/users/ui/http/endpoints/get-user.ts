@@ -9,7 +9,11 @@ export const getUser = endpoint({
   summary: 'Fetch a user by id',
 
   request: {
-    params: req.params({ id: id<UserId>('Identifier of the user') }),
+    params: req.params({
+      id: id<UserId>('Identifier of the user', {
+        example: '01930000-0000-7000-8000-000000000000',
+      }),
+    }),
   },
 
   toInput: ({ params }): GetUserInput => ({ id: params.id }),

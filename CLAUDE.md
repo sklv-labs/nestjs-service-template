@@ -52,6 +52,15 @@ Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `i
 parts use `req.body` / `req.query` / `req.params` / `req.headers`; the namespace exists so the
 builders do not collide with the part names `toInput` destructures.
 
+**Examples belong on the field**, via the builders' `example` option. Zod emits them into the JSON
+Schema, so OpenAPI composes request and response examples from the fields — one definition, sitting
+next to the type and constraints it has to agree with. Do not write a whole-object example next to
+a schema that already has per-field ones; that is a second copy waiting to drift.
+
+The whole-object `example` on `success()` and `request` is for a _scenario_ per-field examples
+cannot express — a pending resource shown beside a completed one. `success()` type-checks it against
+the schema; `request.example` does not.
+
 Every endpoint declares `toInput` and `toResponse`. They are the only place a transport shape meets
 an operation shape; do not map fields inside a controller.
 
@@ -98,6 +107,10 @@ Constraints that will bite if you forget them:
 - **`z.infer` is the output type.** Request examples must be typed `z.input`.
 - **Error responses skip the serializer.** Error contracts type and document; they do not enforce.
 - **`@ApiBody` needs a raw schema** via `openApiSchema(...)`; `@ApiResponse` takes `standardSchema`.
+- **`ApiHeaders` builds its own parameter object and ignores the contract.** Without an explicit
+  `schema: openApiSchema(field, 'input')` every header documents as a bare string, losing its
+  constraints and example. Path and query params do not need this — Nest derives those from the
+  `@Param`/`@Query` schema metadata.
 - **Response validation stops at non-objects.** A handler returning a primitive or `null` bypasses
   the serializer, so the contract is not enforced — while the documentation still claims it. Always
   return an object; raise a domain error instead of returning `null`.

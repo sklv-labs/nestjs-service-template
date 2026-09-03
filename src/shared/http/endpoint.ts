@@ -28,7 +28,10 @@ export type RequestSpec = {
   params?: z.ZodObject;
   query?: z.ZodObject;
   body?: z.ZodObject;
-  /** A sample request payload, shown in the documentation. */
+  /**
+   * A whole-body sample, for a scenario per-field examples cannot express. Prefer putting examples
+   * on the fields.
+   */
   example?: unknown;
 };
 
@@ -79,12 +82,19 @@ export const endpoint = <const R extends RequestSpec, Input, Output>(
   def: Endpoint<R, Input, Output>,
 ): Endpoint<R, Input, Output> => def;
 
-/** A success response. One positional example — a named map is rarely worth the nesting. */
-export const success = (
+/**
+ * A success response.
+ *
+ * The example is optional and type-checked against the schema. Prefer per-field examples via the
+ * field builders — those compose into the documented example automatically and cannot drift from
+ * the field. Pass one here only for a whole-object *scenario* that per-field examples cannot
+ * express, such as showing a pending resource next to a completed one.
+ */
+export const success = <S extends z.ZodType>(
   status: number,
-  schema: z.ZodType,
+  schema: S,
   description: string,
-  example?: unknown,
+  example?: z.input<S>,
 ): ResponseSpec => ({
   status,
   description,
@@ -175,10 +185,14 @@ export const UseEndpoint = (e: DocumentedEndpoint) => {
   if (e.request.headers) {
     decorators.push(
       ApiHeaders(
+        // The schema has to be rendered explicitly: `ApiHeaders` builds the parameter object
+        // itself, and without it Nest documents every header as a bare string, dropping
+        // constraints and examples.
         Object.entries(e.request.headers.shape).map(([name, field]) => ({
           name,
           description: descriptionOf(field),
           required: !field.safeParse(undefined).success,
+          schema: openApiSchema(field, 'input'),
         })),
       ),
     );

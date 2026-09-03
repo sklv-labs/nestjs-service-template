@@ -28,18 +28,23 @@ business state, it belongs in a handler or a service.
 a layer — they describe a boundary and belong to the transport that owns it. Do not reintroduce a
 top-level `contracts/` directory per feature.
 
-An endpoint is described once in `ui/http/endpoints/<name>.ts`, as a builder chain:
-`endpoint(summary).about().headers().body().example().input().output().ok().fails().error()`.
-Controllers read schemas, types and docs from it via `ApiEndpoint`,
-`ReqBody`/`ReqQuery`/`ReqParams`/`ReqHeaders` and `BodyOf`/`QueryOf`/`ParamsOf`/`HeadersOf`. Do not
-inline a zod schema in a controller or repeat one in an `@Api*` decorator.
+An endpoint is described once in `ui/http/endpoints/<name>.ts` as a plain object passed to
+`endpoint({ … })`: `summary`, `request`, `toInput`, `toResponse`, `responses`. Controllers read
+schemas, types and docs from it via `ApiEndpoint`, `ReqBody`/`ReqQuery`/`ReqParams`/`ReqHeaders`
+and `BodyOf`/`QueryOf`/`ParamsOf`/`HeadersOf`. Do not inline a zod schema in a controller or repeat
+one in an `@Api*` decorator.
 
-`.input()` must come after the request parts it destructures — the accumulated type enforces this.
-`.error()` also registers the code→status mapping and generates an example per reason, so never
+A builder-chain version of this was tried and reverted: it accumulates a generic per call, which
+forces `declaration: false` (TS7056 — inferred type exceeds what the compiler will serialize) and
+needs type extraction routed around its own type parameters. Do not reintroduce it.
+
+`httpError` registers the code→status mapping and generates an example per reason, so never
 hand-write per-reason examples.
 
 Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
-`isoDate`, `oneOf`) rather than raw zod in contracts. The description is the first argument.
+`isoDate`, `oneOf`) rather than raw zod in contracts. The description is the first argument. Request
+parts use `req.body` / `req.query` / `req.params` / `req.headers`; the namespace exists so the
+builders do not collide with the part names `toInput` destructures.
 
 Every endpoint declares `.input()` and `.output()`. They are the only place a transport shape meets
 an operation shape; do not map fields inside a controller.
@@ -92,10 +97,6 @@ Constraints that will bite if you forget them:
   returns the error and the caller writes `throw`.
 - **Type examples as `z.input`, not `z.infer`.** Examples are wire JSON, and a branded id's input
   type is a plain string — `z.infer` would demand a cast in every example.
-- **`declaration` is off in this tsconfig, deliberately.** The builder accumulates a generic type
-  per call, and emitting `.d.ts` makes TypeScript serialize it — which fails with TS7056 ("inferred
-  type exceeds the maximum length the compiler will serialize") and TS4094 on the private fields.
-  This is an application, so declarations buy nothing. Turning them back on breaks the build.
 - **`BusinessError` is not usable as a parameter type.** `raise` accepts only that error's own
   reasons, so a specific error is not assignable to a wider one. Anything that documents rather
   than raises takes `BusinessErrorShape`, which drops `raise`.

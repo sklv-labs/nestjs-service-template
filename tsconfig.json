@@ -2,9 +2,7 @@
   "extends": "@sklv-labs/dev-configs/tsconfig/nestjs.json",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "./dist",
-    "declaration": false,
-    "declarationMap": false
+    "outDir": "./dist"
   },
   "include": ["src/**/*"],
   "exclude": ["**/*.test.ts"]

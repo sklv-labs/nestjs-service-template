@@ -58,30 +58,36 @@ export type CreateUserOutput = { user: UserRow };
 export class CreateUserHandler implements Handler<CreateUserInput, CreateUserOutput> { … }
 ```
 
-Each endpoint is written as a chain, and owns the translation in both directions:
+Each endpoint is described in one object, and owns the translation in both directions:
 
 ```ts
-export const createUser = endpoint('Register a user')
-  .about('Validates the body, then applies registration rules.')
-  .headers({ 'x-request-id': str('Correlation id, echoed in logs').optional() })
-  .body({
-    email: email("The user's primary email address"),
-    password: str('Plaintext password, at least 12 characters', { min: 12, max: 256 }),
-  })
-  .example({ email: 'alex@example.com', password: 'correct-horse-battery-staple' })
-  .input(({ body, headers }): CreateUserInput => ({ … }))
-  .output((out: CreateUserOutput) => toUserResponse(out.user))
-  .ok(201, userResponse, 'User registered', { … })
-  .fails(400, 'Body failed contract validation')
-  .error(409, UserRegistrationFailed, { email: 'alex@example.com' }, 'Registration refused');
+export const createUser = endpoint({
+  summary: 'Register a user',
+  description: 'Validates the body, then applies registration rules.',
+
+  request: {
+    headers: req.headers({ 'x-request-id': str('Correlation id, echoed in logs').optional() }),
+    body: req.body({
+      email: email("The user's primary email address"),
+      password: str('Plaintext password, at least 12 characters', { min: 12, max: 256 }),
+    }),
+    example: { email: 'alex@example.com', password: 'correct-horse-battery-staple' },
+  },
+
+  toInput: ({ body, headers }): CreateUserInput => ({ … }),
+  toResponse: (out: CreateUserOutput) => toUserResponse(out.user),
+
+  responses: [
+    success(201, userResponse, 'User registered', { … }),
+    failure(400, 'Body failed contract validation'),
+    httpError(409, UserRegistrationFailed, { email: 'alex@example.com' }, 'Registration refused'),
+  ],
+});
 ```
 
-`.error()` does three things from one line: documents the response, registers the code→status
+`httpError` does three things from one line: documents the response, registers the code→status
 mapping the filter uses, and generates one named example per reason using the messages declared on
 the business error. Nothing about a reason is written twice.
-
-Call order is checked by the types, not by convention — `.input()` sees only the request parts
-declared before it, so calling it first fails to compile.
 
 An RMQ consumer for the same scenario writes its own `toInput` from a message envelope and reuses
 the handler untouched.

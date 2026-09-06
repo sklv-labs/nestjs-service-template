@@ -12,6 +12,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
 import { logger } from './logger';
+import { registerRequestLogging } from './shared/http';
 import { LoggerService } from './shared/logger';
 
 const REQUEST_ID_HEADER = 'x-request-id';
@@ -24,6 +25,8 @@ async function bootstrap(): Promise<void> {
     // access log line and everything the handler logs share one id, including for requests that
     // never reach Nest at all.
     // Fastify extracts the id from this header itself, so genReqId only runs when it is absent.
+    // Ours replaces it: one detailed line per request instead of Fastify's incoming/completed pair.
+    disableRequestLogging: true,
     requestIdHeader: REQUEST_ID_HEADER,
     genReqId: () => randomUUID(),
   });
@@ -32,12 +35,14 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
 
-  app.useLogger(app.get(LoggerService));
+  const loggerService = app.get(LoggerService);
+  const config = app.get(ConfigService);
+
+  app.useLogger(loggerService);
+  registerRequestLogging(app, loggerService, { body: config.logging.requestBody });
 
   const { default: helmet } = await import('@fastify/helmet');
   await app.register(helmet);
-
-  const config = app.get(ConfigService);
 
   app.enableShutdownHooks();
   app.setGlobalPrefix(config.globalPrefix);

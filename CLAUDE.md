@@ -59,9 +59,20 @@ its side instead, but it is deprecated and removed in Fastify 6. It is configura
 no internals. A single catch-all would silently take over Nest's `HttpException` handling. They are
 registered as `APP_FILTER` in `shared/http/http.module.ts`, so they get DI.
 
-**There is no request-logging interceptor.** Fastify already logs requests, it is faster, and it
-covers requests that never reach Nest — 404s, malformed bodies, plugin rejections. An interceptor is
-structurally blind to those.
+**Request logging is a Fastify `onResponse` hook**, not a Nest interceptor — so it also covers
+requests Nest never routes (404s, malformed bodies, plugin rejections), which is where detail is
+most wanted. Fastify's own two-line access log is turned off via `disableRequestLogging` in favour
+of one detailed line per request carrying method, url, headers, query, params, status and duration.
+
+**Bodies are logged only when `LOG_REQUEST_BODY=true`,** and redaction is the only thing between
+that and credentials sitting in log storage permanently. Redaction paths must match the _logged
+shape_, not the bare field name — pino matches paths and `*.password` covers one level, so request
+logging needs `req.body.password` spelled out. **Adding a secret-bearing field to a contract means
+adding a redact path.** Nothing can un-log a value.
+
+Bodies over `maxBodyBytes` (4096) are replaced with a marker; the `ignore` predicate uses substring
+matching, because a global prefix turns `/health` into `/api/v1/health` and a prefix check silently
+stops ignoring it.
 
 Expected failures log at **debug**, bugs at **error**. A 409 is the system working.
 

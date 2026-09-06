@@ -34,6 +34,14 @@ export const LOGGER_REQUEST_ID_KEY = Symbol('LOGGER_REQUEST_ID_KEY');
 
 export const DEFAULT_REQUEST_ID_KEY = 'reqId';
 
+/**
+ * Redaction paths must match the *shape that is logged*, not the field name in isolation: pino
+ * matches paths, and `*.password` covers one level only. Request logging nests everything under
+ * `req`, so those paths are spelled out explicitly.
+ *
+ * Adding a secret-bearing field to a contract means adding it here. There is no way to un-log a
+ * value once it is written.
+ */
 export const DEFAULT_REDACT = [
   'password',
   '*.password',
@@ -43,6 +51,19 @@ export const DEFAULT_REDACT = [
   '*.token',
   'secret',
   '*.secret',
+
+  // request logging
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.headers["set-cookie"]',
+  'req.headers["x-api-key"]',
+  'req.headers["proxy-authorization"]',
+  'req.body.password',
+  'req.body.passwordHash',
+  'req.body.token',
+  'req.body.secret',
+  'req.body.accessToken',
+  'req.body.refreshToken',
+  'req.body.*.password',
+  'req.body.*.token',
 ];

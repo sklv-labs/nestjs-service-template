@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import type { ContextLogger } from '../../shared/logger';
+import { Logger } from '../../shared/logger';
 import type { UserId, UserRow } from '../domain';
 import { UserNotFound, UserRegistrationFailed } from '../domain';
 
@@ -10,9 +12,16 @@ const BLOCKED_DOMAINS = new Set(['blocked.example']);
 
 @Injectable()
 export class UsersService {
-  private readonly logger = new Logger(UsersService.name);
+  private readonly logger: ContextLogger;
 
-  constructor(private readonly users: UsersRepository) {}
+  constructor(
+    private readonly users: UsersRepository,
+    logger: Logger,
+  ) {
+    // Bound in the constructor rather than a field initialiser: a field cannot read a constructor
+    // parameter before the constructor runs.
+    this.logger = logger.forContext(UsersService.name);
+  }
 
   async getById(id: UserId): Promise<UserRow> {
     const user = await this.users.findById(id);

@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import type { ContextLogger } from '../../shared/logger';
+import { Logger } from '../../shared/logger';
 import type { Handler } from '../../shared/operation';
 import type { UserRow } from '../domain';
 import { UsersService } from '../service/users.service';
@@ -24,9 +26,14 @@ export type CreateUserOutput = {
  */
 @Injectable()
 export class CreateUserHandler implements Handler<CreateUserInput, CreateUserOutput> {
-  private readonly logger = new Logger(CreateUserHandler.name);
+  private readonly logger: ContextLogger;
 
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    logger: Logger,
+  ) {
+    this.logger = logger.forContext(CreateUserHandler.name);
+  }
 
   async execute(input: CreateUserInput): Promise<CreateUserOutput> {
     this.logger.log(`Registering ${input.email} (correlation ${input.correlationId ?? 'none'})`);

@@ -10,7 +10,9 @@ export const createUser = endpoint({
 
   request: {
     headers: req.headers({
-      'x-request-id': str('Correlation id, echoed in logs', { example: 'req-7f3a91' }).optional(),
+      'x-request-id': str('Correlation id (UUID). Generated when absent or not a UUID.', {
+        example: '3f8a1c2e-5b7d-4e9f-9a1b-2c3d4e5f6a7b',
+      }).optional(),
     }),
     body: req.body({
       email: email("The user's primary email address", { example: 'alex@example.com' }),

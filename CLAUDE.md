@@ -59,12 +59,20 @@ its side instead, but it is deprecated and removed in Fastify 6. It is configura
 no internals. A single catch-all would silently take over Nest's `HttpException` handling. They are
 registered as `APP_FILTER` in `shared/http/http.module.ts`, so they get DI.
 
+**An inbound `x-request-id` is honoured only when it is a UUID.** The header is caller-controlled,
+so an arbitrary value would be stamped on every log line for that request — a way to inject
+newlines or kilobytes into log storage. `requestIdHeader` is therefore `false` on the adapter, so
+`genReqId` always runs and validates before accepting. Contract examples for that header must be
+real UUIDs, or the docs page sends its example value and it gets rejected on every try-it-out.
+
 **Request logging is a Fastify `onResponse` hook**, not a Nest interceptor — so it also covers
 requests Nest never routes (404s, malformed bodies, plugin rejections), which is where detail is
 most wanted. Fastify's own two-line access log is turned off via `disableRequestLogging` in favour
 of one detailed line per request carrying method, url, headers, query, params, status and duration.
 
-**Bodies are logged only when `LOG_REQUEST_BODY=true`,** and redaction is the only thing between
+**Bodies are logged outside production and not in it** — `LOG_REQUEST_BODY` and
+`LOG_RESPONSE_BODY` default to `!isProduction()`, so local runs show them without configuration
+while production keeps personal data out of log storage. Redaction is the only thing between
 that and credentials sitting in log storage permanently. Redaction paths must match the _logged
 shape_, not the bare field name — pino matches paths and `*.password` covers one level, so request
 logging needs `req.body.password` spelled out. **Adding a secret-bearing field to a contract means

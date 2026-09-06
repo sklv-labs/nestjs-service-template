@@ -4,6 +4,14 @@ import { email, id, isoDate, paginated } from '../../../shared/contracts';
 import type { UserId, UserRow } from '../../domain';
 
 /**
+ * The response representations for this resource, shared across endpoints.
+ *
+ * Kept here rather than inlined per endpoint because responses scale with *representations*, not
+ * with endpoints: a feature with a dozen routes still has one user shape and a couple of variants.
+ * `userResponse` is already used by two endpoints, and it is what `$ref` points at — inlining it
+ * would fork the component and let the two copies drift. Request shapes are the opposite, so those
+ * live beside the endpoint that owns them.
+ *
  * The base user response. Every other user-shaped response extends or composes this, so a field
  * added here appears everywhere it should and nowhere it should not.
  */

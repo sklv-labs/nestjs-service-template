@@ -76,6 +76,10 @@ const pickHeaders = (
   );
 };
 
+/**
+ * Only the hook registration is needed from the Fastify instance, and typing it structurally keeps
+ * this module free of Fastify's types.
+ */
 type FastifyLike = { addHook: (event: string, handler: (...args: never[]) => void) => void };
 
 type Req = {
@@ -150,13 +154,13 @@ export const registerRequestLogging = (
   const instance = app.getHttpAdapter().getInstance() as unknown as FastifyLike;
 
   if (opts.responseBody) {
-    instance.addHook('onSend', ((req: Req, _reply: Reply, payload: unknown, done: () => void) => {
+    instance.addHook('onSend', (req: Req, _reply: Reply, payload: unknown, done: () => void) => {
       req[PAYLOAD] = payload;
       done();
-    }) as never);
+    });
   }
 
-  instance.addHook('onResponse', ((req: Req, reply: Reply, done: () => void) => {
+  instance.addHook('onResponse', (req: Req, reply: Reply, done: () => void) => {
     if (opts.ignore(req.url)) {
       done();
       return;
@@ -191,7 +195,7 @@ export const registerRequestLogging = (
     );
 
     done();
-  }) as never);
+  });
 };
 
 export type { Logger };

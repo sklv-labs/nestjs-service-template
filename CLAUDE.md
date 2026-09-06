@@ -116,10 +116,14 @@ top-level `contracts/` directory per feature.
 An endpoint is described once in `ui/http/endpoints/<name>.ts` as a plain object passed to
 `endpoint({ … })`: `summary`, `request`, `toInput`, `toResponse`, `success`, `errors`.
 
-**Request schemas are defined in `ui/http/requests.ts`, not inline in the endpoint** — mirroring
-`responses.ts`. An endpoint then reads as wiring (what it accepts, what it returns, how it maps onto
-an operation) instead of burying that under schema definitions, and two endpoints can share a shape:
-`userIdParams` serves any route addressing a single user.
+**Request schemas are declared in the endpoint's own file and not exported.** A request shape
+belongs to exactly one endpoint, so a shared `requests.ts` would grow with every route and split an
+endpoint's definition across files. Name them `bodySchema` / `paramsSchema` / `querySchema` — `body`,
+`params` and `query` would shadow what `toInput` destructures.
+
+**Response schemas stay shared in `ui/http/responses.ts`**, because they scale with representations
+rather than endpoints: a dozen routes still share one user shape. `userResponse` is used by two
+endpoints and is what `$ref` points at, so inlining it would fork the component.
 
 Headers that every endpoint accepts live in `shared/http` (`correlationHeaders`), not redeclared per
 feature — they are transport plumbing, identical everywhere.

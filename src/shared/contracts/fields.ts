@@ -16,7 +16,7 @@ type Common = { example?: unknown };
 const finish = <T extends z.ZodType>(schema: T, text?: string, opts: Common = {}): T => {
   const described = text ? schema.describe(text) : schema;
 
-  return (opts.example === undefined ? described : described.meta({ example: opts.example })) as T;
+  return opts.example === undefined ? described : described.meta({ example: opts.example });
 };
 
 /**

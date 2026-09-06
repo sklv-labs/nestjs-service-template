@@ -192,6 +192,21 @@ Constraints that will bite if you forget them:
   than raises takes `BusinessErrorShape`, which drops `raise`.
 - Strictness lives in the schema (`.strict()`), not in pipe options.
 
+## Never touch .env
+
+`.env` is the developer's own file: gitignored, untracked, and holding real local values. Do not
+create it, copy over it, edit it, or delete it — there is no way to recover what was there.
+
+To run the service while testing, pass the environment inline instead; `dotenv` does not override
+variables already present in `process.env`, so this composes with an existing `.env`:
+
+```bash
+LOG_JSON=true node dist/main.js
+```
+
+If a run genuinely needs a full environment and none exists, use a throwaway path and point at it
+explicitly rather than writing `.env`.
+
 ## Mechanical constraints — these are not stylistic
 
 These are runtime facts, and they hold whatever the architecture turns into.

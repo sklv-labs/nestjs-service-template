@@ -220,9 +220,12 @@ Constraints that will bite if you forget them:
   response contracts. Branded ids therefore use the `brandedUuid()` cast in `src/contracts/branded.ts`,
   not `.transform(asUuid)`.
 - **`z.infer` is the output type.** Request examples must be typed `z.input`.
-- **Error responses skip the serializer**, so `DomainExceptionFilter` parses its own body against
-  the documented contract and logs on mismatch. That is the only place an error contract can be
-  enforced rather than merely asserted.
+- **Error responses cannot use the serializer.** Exception filters run outside the interceptor
+  chain, and `@SerializeOptions` carries the handler's _success_ schema anyway. `DomainExceptionFilter`
+  therefore parses its own body against the documented error contract and replies with the **parsed
+  result**, so unknown keys are stripped exactly as they are for success responses. A parse failure
+  is logged loudly and the unparsed body still goes out — the drift is our bug, and withholding the
+  response would turn it into the caller's outage.
 - **`@ApiBody` needs a raw schema** via `openApiSchema(...)`; `@ApiResponse` takes `standardSchema`.
 - **`ApiHeaders` builds its own parameter object and ignores the contract.** Without an explicit
   `schema: openApiSchema(field, 'input')` every header documents as a bare string, losing its

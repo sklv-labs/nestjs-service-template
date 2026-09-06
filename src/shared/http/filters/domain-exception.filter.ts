@@ -51,10 +51,15 @@ export class DomainExceptionFilter implements ExceptionFilter {
       details: exception.details,
     };
 
-    // Error responses never pass through the serializer, so this is the only place the documented
-    // error contract can be enforced rather than merely asserted. Failing here means the filter and
-    // the endpoint's declared schema have drifted — a bug in us, not in the caller, so the response
-    // still goes out.
+    // Exception filters run outside the interceptor chain, so `StandardSchemaSerializerInterceptor`
+    // never sees this response — and could not serialize it anyway, because `@SerializeOptions`
+    // carries the handler's *success* schema. Parsing here is what gives error responses the same
+    // guarantee success responses get: the contract decides what goes out, and unknown keys are
+    // stripped rather than trusted.
+    //
+    // A parse failure means the filter and the endpoint's declared schema have drifted, which is a
+    // bug in us rather than in the caller — so it is logged loudly and the unparsed body still goes
+    // out, because returning nothing would turn our bug into their outage.
     const parsed = contract?.schema.safeParse(body);
 
     if (parsed && !parsed.success) {
@@ -64,6 +69,10 @@ export class DomainExceptionFilter implements ExceptionFilter {
       );
     }
 
-    this.adapterHost.httpAdapter.reply(host.switchToHttp().getResponse(), body, statusCode);
+    this.adapterHost.httpAdapter.reply(
+      host.switchToHttp().getResponse(),
+      parsed?.success ? parsed.data : body,
+      statusCode,
+    );
   }
 }

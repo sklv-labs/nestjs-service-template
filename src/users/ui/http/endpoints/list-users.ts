@@ -1,5 +1,5 @@
 import { int, oneOf, str } from '../../../../shared/contracts';
-import { endpoint, failure, req, success } from '../../../../shared/http';
+import { endpoint, failure, req } from '../../../../shared/http';
 import type { ListUsersInput, ListUsersOutput } from '../../../operation';
 import { toUserResponse, userListResponse } from '../responses';
 
@@ -29,8 +29,6 @@ export const listUsers = endpoint({
     meta: { page: out.page, limit: out.limit, total: out.total },
   }),
 
-  responses: [
-    success(200, userListResponse, 'A page of users'),
-    failure(400, 'Query failed contract validation'),
-  ],
+  success: { status: 200, schema: userListResponse, description: 'A page of users' },
+  errors: [failure(400, 'Query failed contract validation')],
 });

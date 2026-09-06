@@ -13,9 +13,7 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ validationSchema, providers: [ConfigService] }),
-    // Before everything else: the correlation context is what the logger and filters read.
     ClsModule.forRoot(),
-    // The instance is built in ./logger, because Fastify needs it before Nest exists.
     LoggerModule.forRoot({ instance: logger }),
     HttpModule,
     DrizzleModule,

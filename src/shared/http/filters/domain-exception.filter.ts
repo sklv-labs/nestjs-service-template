@@ -5,7 +5,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { DomainError } from '../../errors';
 import type { Logger } from '../../logger';
 import { InjectLogger } from '../../logger';
-import { statusForError } from '../error-status';
+import { contractForError } from '../error-status';
 
 /**
  * Renders a business failure as its documented HTTP response.
@@ -23,7 +23,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
   constructor(private readonly adapterHost: HttpAdapterHost) {}
 
   catch(exception: DomainError, host: ArgumentsHost): void {
-    const status = statusForError(exception.code);
+    const contract = contractForError(exception.code);
+    const status = contract?.status;
 
     if (status === undefined) {
       // A wiring bug: the domain can raise this, but no endpoint documents it.
@@ -42,16 +43,27 @@ export class DomainExceptionFilter implements ExceptionFilter {
       exception.message,
     );
 
-    this.adapterHost.httpAdapter.reply(
-      host.switchToHttp().getResponse(),
-      {
-        statusCode,
-        message: exception.message,
-        errorCode: exception.code,
-        reason: exception.reason,
-        details: exception.details,
-      },
+    const body = {
       statusCode,
-    );
+      message: exception.message,
+      errorCode: exception.code,
+      reason: exception.reason,
+      details: exception.details,
+    };
+
+    // Error responses never pass through the serializer, so this is the only place the documented
+    // error contract can be enforced rather than merely asserted. Failing here means the filter and
+    // the endpoint's declared schema have drifted — a bug in us, not in the caller, so the response
+    // still goes out.
+    const parsed = contract?.schema.safeParse(body);
+
+    if (parsed && !parsed.success) {
+      this.logger.error(
+        { errorCode: exception.code, issues: parsed.error.issues },
+        'Error response does not satisfy its documented contract',
+      );
+    }
+
+    this.adapterHost.httpAdapter.reply(host.switchToHttp().getResponse(), body, statusCode);
   }
 }

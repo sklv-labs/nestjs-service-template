@@ -1,4 +1,5 @@
 export * from './endpoint';
+export * from './endpoint-scanner';
 export * from './error-contract';
 export * from './error-status';
 export * from './filters';

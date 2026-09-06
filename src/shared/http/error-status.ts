@@ -1,20 +1,25 @@
-/**
- * Which HTTP status each business error maps to.
- *
- * Populated by `httpError()` while documenting a response, so the documented status and the one the
- * filter returns are the same by construction. The cost is that an error no endpoint documents has
- * no status, and the filter falls back to 500 — loudly, but at runtime.
- *
- * Module-level state is a known limitation: it is process-wide, so two Nest applications in one
- * process share it and import order decides conflicts. `reset()` exists so tests are not at the
- * mercy of that.
- */
-const statusByCode = new Map<string, number>();
+import type { z } from 'zod';
 
-export const mapErrorStatus = (code: string, status: number): void => {
-  statusByCode.set(code, status);
+/**
+ * What each business error looks like over HTTP: its status, and the contract its response body
+ * must satisfy.
+ *
+ * Populated once at bootstrap by the endpoint scanner, from the endpoints actually mounted on
+ * controllers. `httpError()` used to write here as an import side effect, which made the mapping
+ * process-global and dependent on module evaluation order.
+ */
+type ErrorContract = { status: number; schema: z.ZodType };
+
+const contracts = new Map<string, ErrorContract>();
+
+export const mapErrorContract = (code: string, contract: ErrorContract): void => {
+  contracts.set(code, contract);
 };
 
-export const statusForError = (code: string): number | undefined => statusByCode.get(code);
+export const statusForError = (code: string): number | undefined => contracts.get(code)?.status;
 
-export const resetErrorStatuses = (): void => statusByCode.clear();
+export const contractForError = (code: string): ErrorContract | undefined => contracts.get(code);
+
+export const mappedErrorCodes = (): string[] => [...contracts.keys()];
+
+export const resetErrorContracts = (): void => contracts.clear();

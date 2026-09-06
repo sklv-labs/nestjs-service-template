@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, DiscoveryModule } from '@nestjs/core';
 
+import { EndpointScanner } from './endpoint-scanner';
 import { DomainExceptionFilter, UnhandledExceptionFilter } from './filters';
 
 /**
@@ -11,7 +12,9 @@ import { DomainExceptionFilter, UnhandledExceptionFilter } from './filters';
  * before the specific one.
  */
 @Module({
+  imports: [DiscoveryModule],
   providers: [
+    EndpointScanner,
     { provide: APP_FILTER, useClass: UnhandledExceptionFilter },
     { provide: APP_FILTER, useClass: DomainExceptionFilter },
   ],

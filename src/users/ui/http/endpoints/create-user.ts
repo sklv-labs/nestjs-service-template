@@ -1,7 +1,7 @@
 import { email, str } from '../../../../shared/contracts';
-import { endpoint, failure, httpError, req, success } from '../../../../shared/http';
-import { UserRegistrationFailed } from '../../../domain';
+import { endpoint, failure, req } from '../../../../shared/http';
 import type { CreateUserInput, CreateUserOutput } from '../../../operation';
+import { userRegistrationFailed } from '../error-responses';
 import { toUserResponse, userResponse } from '../responses';
 
 export const createUser = endpoint({
@@ -29,9 +29,6 @@ export const createUser = endpoint({
   }),
   toResponse: (out: CreateUserOutput) => toUserResponse(out.user),
 
-  responses: [
-    success(201, userResponse, 'User registered'),
-    failure(400, 'Body failed contract validation'),
-    httpError(409, UserRegistrationFailed, { email: 'alex@example.com' }, 'Registration refused'),
-  ],
+  success: { status: 201, schema: userResponse, description: 'User registered' },
+  errors: [failure(400, 'Body failed contract validation'), userRegistrationFailed],
 });

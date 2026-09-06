@@ -1,11 +1,18 @@
-import { applyDecorators, Body, HttpCode, Param, Query, SerializeOptions } from '@nestjs/common';
+import {
+  applyDecorators,
+  Body,
+  HttpCode,
+  Param,
+  Query,
+  SerializeOptions,
+  SetMetadata,
+} from '@nestjs/common';
 import { ApiBody, ApiHeaders, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { z } from 'zod';
 
 import type { BusinessErrorShape } from '../errors';
 
 import { businessErrorExamples, businessErrorResponse, errorResponse } from './error-contract';
-import { mapErrorStatus } from './error-status';
 import { openApiSchema } from './openapi';
 import { RequestHeaders } from './request';
 
@@ -17,6 +24,8 @@ export type ResponseSpec = {
   description: string;
   schema?: z.ZodType;
   examples?: Examples;
+  /** Set when the response documents a business error, so the boot scan can map its status. */
+  errorCode?: string;
 };
 
 export type RequestSpec = {
@@ -24,11 +33,25 @@ export type RequestSpec = {
   params?: z.ZodObject;
   query?: z.ZodObject;
   body?: z.ZodObject;
-  /**
-   * A whole-body sample, for a scenario per-field examples cannot express. Prefer putting examples
-   * on the fields.
-   */
-  example?: unknown;
+};
+
+/**
+ * The response an endpoint succeeds with.
+ *
+ * Separate from the error list because it is not just another response — it is the contract of the
+ * handler's output, which is what lets `toResponse` be checked against it. Keeping it in an array
+ * also made "which 2xx is the real one" ambiguous.
+ *
+ * The schema is a `ZodObject` deliberately: Nest's serializer skips anything that is not a non-null
+ * object, so a primitive or nullable contract would be documented but never enforced. This makes
+ * that state unreachable.
+ */
+export type SuccessSpec<S extends z.ZodObject = z.ZodObject> = {
+  status: number;
+  schema: S;
+  description: string;
+  /** Type-checked against the schema. Prefer per-field examples via the field builders. */
+  example?: z.input<S>;
 };
 
 /**
@@ -42,63 +65,49 @@ export type RequestParts<R extends RequestSpec> = (R['headers'] extends z.ZodObj
   (R['query'] extends z.ZodObject ? { query: z.infer<R['query']> } : object) &
   (R['body'] extends z.ZodObject ? { body: z.infer<R['body']> } : object);
 
-export type Endpoint<R extends RequestSpec = RequestSpec, Input = unknown, Output = unknown> = {
+export type Endpoint<
+  R extends RequestSpec = RequestSpec,
+  S extends z.ZodObject = z.ZodObject,
+  Input = unknown,
+  Output = unknown,
+> = {
   summary: string;
   description?: string;
   request: R;
-  responses: ResponseSpec[];
+  success: SuccessSpec<S>;
+  errors?: ResponseSpec[];
   /**
    * Translates a validated request into the operation's input. This is the seam that keeps handlers
-   * transport-agnostic: an RMQ consumer for the same operation writes its own version of this and
-   * the handler is untouched.
+   * transport-agnostic: an RMQ consumer for the same operation writes its own version and the
+   * handler is untouched.
    */
   toInput: (parts: RequestParts<R>) => Input;
-  /** Translates the operation's output into the response contract. */
-  toResponse: (output: Output) => unknown;
+  /**
+   * Translates the operation's output into the response contract.
+   *
+   * Typed as the success schema's input, so a mapper that stops matching the contract is a compile
+   * error rather than a 500 from the serializer at runtime.
+   */
+  toResponse: (output: Output) => z.input<S>;
 };
 
-/**
- * What the decorators read. Deliberately drops the two mapping functions: a specific endpoint is
- * not assignable to `Endpoint<RequestSpec, unknown, unknown>` because function parameters are
- * contravariant, and the decorators do not use them.
- */
+/** What the decorators and the boot scan read. Drops the mapping functions, which they do not use. */
 export type DocumentedEndpoint = {
   summary: string;
   description?: string;
   request: RequestSpec;
-  responses: ResponseSpec[];
+  success: SuccessSpec;
+  errors?: ResponseSpec[];
 };
 
 /**
- * Describes one endpoint in one place: what a request may carry, how it maps onto an operation, and
- * every response it can produce. Decorators, parameter schemas, handler types and the OpenAPI
- * document all derive from this single value.
+ * Describes one endpoint: what a request may carry, how it maps onto an operation, what success
+ * looks like, and every way it can fail. Decorators, parameter schemas, handler types and the
+ * OpenAPI document all derive from this single value.
  */
-export const endpoint = <const R extends RequestSpec, Input, Output>(
-  def: Endpoint<R, Input, Output>,
-): Endpoint<R, Input, Output> => def;
-
-/**
- * A success response.
- *
- * The example is optional and type-checked against the schema. Prefer per-field examples via the
- * field builders — those compose into the documented example automatically and cannot drift from
- * the field. Pass one here only for a whole-object *scenario* that per-field examples cannot
- * express, such as showing a pending resource next to a completed one.
- */
-export const success = <S extends z.ZodType>(
-  status: number,
-  schema: S,
-  description: string,
-  example?: z.input<S>,
-): ResponseSpec => ({
-  status,
-  description,
-  schema,
-  ...(example === undefined
-    ? {}
-    : { examples: { default: { summary: description, value: example } } }),
-});
+export const endpoint = <const R extends RequestSpec, S extends z.ZodObject, Input, Output>(
+  def: Endpoint<R, S, Input, Output>,
+): Endpoint<R, S, Input, Output> => def;
 
 /** A transport-level failure with no business meaning — validation, auth, a missing route. */
 export const failure = (status: number, description: string): ResponseSpec => ({
@@ -108,29 +117,37 @@ export const failure = (status: number, description: string): ResponseSpec => ({
 });
 
 /**
- * A business error response. Declaring it also maps the code to this status at runtime, so the
- * documented status and the one the filter returns cannot disagree, and generates one example per
- * reason from the messages on the error declaration.
+ * A business error response. Generates one example per reason from the messages on the error
+ * declaration, and carries the code so the boot scan can map it to this status — no import-time
+ * side effect and no global mutation at module load.
  */
 export const httpError = <D extends z.ZodType>(
   status: number,
   error: BusinessErrorShape<D>,
   detailsExample: z.input<D>,
   description?: string,
-): ResponseSpec => {
-  mapErrorStatus(error.code, status);
+): ResponseSpec => ({
+  status,
+  description: description ?? error.code,
+  schema: businessErrorResponse(status, error),
+  examples: businessErrorExamples(status, error, detailsExample),
+  errorCode: error.code,
+});
 
-  return {
-    status,
-    description: description ?? error.code,
-    schema: businessErrorResponse(status, error),
-    examples: businessErrorExamples(status, error, detailsExample),
-  };
-};
+export const ENDPOINT_METADATA = 'sklv:endpoint';
+
+const toResponseSpec = (success: SuccessSpec): ResponseSpec => ({
+  status: success.status,
+  description: success.description,
+  schema: success.schema,
+  ...(success.example === undefined
+    ? {}
+    : { examples: { default: { summary: success.description, value: success.example } } }),
+});
 
 /**
  * `.optional()` wraps a schema, so a description set before it sits on the inner type. Read through
- * one level of wrapping so documented headers keep their description.
+ * one level so documented headers keep their description.
  */
 const descriptionOf = (field: z.ZodType): string | undefined =>
   field.description ??
@@ -138,26 +155,14 @@ const descriptionOf = (field: z.ZodType): string | undefined =>
     ?.description;
 
 /**
- * The response the endpoint succeeds with. Its schema is the serialization contract and its status
- * is the status to return, so neither needs restating on the controller.
- *
- * An endpoint with several 2xx entries is ambiguous; the first wins, which is why declaring more
- * than one success response is a smell rather than a feature.
- */
-const successResponse = (e: DocumentedEndpoint): ResponseSpec | undefined =>
-  e.responses.find((r) => r.status >= 200 && r.status < 300);
-
-/**
- * Wires an endpoint to a controller method: its documentation, its response contract and its
- * success status.
- *
- * Everything comes from the descriptor, so a handler names its endpoint once. Restating the
- * response schema in `@SerializeOptions` or the status in `@HttpCode` is how they drift.
+ * Wires an endpoint to a controller method: documentation, response contract, success status, and
+ * the metadata the boot scan reads to map error codes to statuses.
  */
 export const UseEndpoint = (e: DocumentedEndpoint) => {
   const decorators = [
+    SetMetadata(ENDPOINT_METADATA, e),
     ApiOperation({ summary: e.summary, description: e.description }),
-    ...e.responses.map((r) =>
+    ...[toResponseSpec(e.success), ...(e.errors ?? [])].map((r) =>
       ApiResponse({
         status: r.status,
         description: r.description,
@@ -165,25 +170,19 @@ export const UseEndpoint = (e: DocumentedEndpoint) => {
         ...(r.examples ? { examples: r.examples } : {}),
       }),
     ),
+    HttpCode(e.success.status),
+    SerializeOptions({ schema: e.success.schema }),
   ];
 
   if (e.request.body) {
-    decorators.push(
-      ApiBody({
-        schema: openApiSchema(e.request.body, 'input'),
-        ...(e.request.example === undefined
-          ? {}
-          : { examples: { standard: { summary: 'Example request', value: e.request.example } } }),
-      }),
-    );
+    decorators.push(ApiBody({ schema: openApiSchema(e.request.body, 'input') }));
   }
 
   if (e.request.headers) {
     decorators.push(
       ApiHeaders(
-        // The schema has to be rendered explicitly: `ApiHeaders` builds the parameter object
-        // itself, and without it Nest documents every header as a bare string, dropping
-        // constraints and examples.
+        // `ApiHeaders` builds the parameter object itself, so without an explicit schema every
+        // header documents as a bare string, losing its constraints and example.
         Object.entries(e.request.headers.shape).map(([name, field]) => ({
           name,
           description: descriptionOf(field),
@@ -192,16 +191,6 @@ export const UseEndpoint = (e: DocumentedEndpoint) => {
         })),
       ),
     );
-  }
-
-  const ok = successResponse(e);
-
-  if (ok) {
-    decorators.push(HttpCode(ok.status));
-
-    if (ok.schema) {
-      decorators.push(SerializeOptions({ schema: ok.schema }));
-    }
   }
 
   return applyDecorators(...decorators);
@@ -215,8 +204,8 @@ export const ReqHeaders = (e: DocumentedEndpoint) => RequestHeaders({ schema: e.
 
 /**
  * Handler parameter types, inferred from the endpoint's own `toInput` signature rather than from
- * the `Endpoint` type parameters — `Input` sits in a return position, so an endpoint with a
- * concrete input is not assignable to one parameterised with `never`.
+ * the type parameters — `Input` sits in a return position, so an endpoint with a concrete input is
+ * not assignable to one parameterised with `never`.
  */
 type PartsOf<E> = E extends { toInput: (parts: infer P) => unknown } ? P : never;
 

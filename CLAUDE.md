@@ -95,7 +95,12 @@ a layer — they describe a boundary and belong to the transport that owns it. D
 top-level `contracts/` directory per feature.
 
 An endpoint is described once in `ui/http/endpoints/<name>.ts` as a plain object passed to
-`endpoint({ … })`: `summary`, `request`, `toInput`, `toResponse`, `responses`. Controllers read
+`endpoint({ … })`: `summary`, `request`, `toInput`, `toResponse`, `success`, `errors`.
+
+`success` is its own field, not an entry in a response array. It is the contract of the handler's
+output, which is what lets `toResponse` be typed `z.input<S>` — a mapper that stops matching the
+contract is a compile error, not a runtime 500. Its schema must be a `ZodObject`, because the
+serializer skips anything that is not a non-null object. Controllers read
 schemas, types and docs from it via `UseEndpoint`, `ReqBody`/`ReqQuery`/`ReqParams`/`ReqHeaders`
 and `BodyOf`/`QueryOf`/`ParamsOf`/`HeadersOf`. Do not inline a zod schema in a controller or repeat
 one in an `@Api*` decorator.
@@ -110,8 +115,21 @@ A builder-chain version of this was tried and reverted: it accumulates a generic
 forces `declaration: false` (TS7056 — inferred type exceeds what the compiler will serialize) and
 needs type extraction routed around its own type parameters. Do not reintroduce it.
 
-`httpError` registers the code→status mapping and generates an example per reason, so never
-hand-write per-reason examples.
+`httpError` generates an example per reason from the error declaration, so never hand-write them.
+Hoist shared ones into `ui/http/error-responses.ts` and reference them — `httpError()` returns a
+plain value, so two endpoints raising the same error restate nothing.
+
+**Error statuses are registered at boot, not at import.** `UseEndpoint` attaches the endpoint as
+route metadata and `EndpointScanner` walks every mounted controller on `onApplicationBootstrap` to
+build the code→status map. It also warns, naming them, about business errors no endpoint documents
+— those return 500 if raised over HTTP. Do not reintroduce registration as an import side effect:
+it made the map process-global and dependent on module evaluation order.
+
+**Name every shared contract** with `.meta({ id: 'User' })`. Zod emits `$ref` + `definitions`, which
+Nest hoists into `components.schemas`; without an id the shape is inlined at every endpoint that
+uses it. `businessErrorResponse` and `paginated` name theirs too, because `.extend()` and wrapper
+helpers produce new anonymous schemas. Request bodies stay inlined — `@ApiBody` takes a raw schema,
+not a standard schema, so there is no hoisting path for them.
 
 Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
 `isoDate`, `oneOf`) rather than raw zod in contracts. The description is the first argument. Request
@@ -171,7 +189,9 @@ Constraints that will bite if you forget them:
   response contracts. Branded ids therefore use the `brandedUuid()` cast in `src/contracts/branded.ts`,
   not `.transform(asUuid)`.
 - **`z.infer` is the output type.** Request examples must be typed `z.input`.
-- **Error responses skip the serializer.** Error contracts type and document; they do not enforce.
+- **Error responses skip the serializer**, so `DomainExceptionFilter` parses its own body against
+  the documented contract and logs on mismatch. That is the only place an error contract can be
+  enforced rather than merely asserted.
 - **`@ApiBody` needs a raw schema** via `openApiSchema(...)`; `@ApiResponse` takes `standardSchema`.
 - **`ApiHeaders` builds its own parameter object and ignores the contract.** Without an explicit
   `schema: openApiSchema(field, 'input')` every header documents as a bare string, losing its

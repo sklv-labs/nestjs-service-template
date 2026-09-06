@@ -51,6 +51,17 @@ export type BusinessError<
  * that reason, and the shape of its details. Services raise it, and the HTTP layer documents it
  * from the same declaration.
  */
+const declared = new Set<string>();
+
+/**
+ * Every business error code declared in the process.
+ *
+ * Used only by the boot-time check that reports errors no endpoint documents. This is discovery,
+ * not policy: an incomplete list makes the warning incomplete, never wrong — unlike the status
+ * mapping this replaced, where a missing entry silently changed a response.
+ */
+export const declaredBusinessErrors = (): string[] => [...declared];
+
 export const businessError = <
   const Code extends string,
   const R extends Reasons,
@@ -59,19 +70,23 @@ export const businessError = <
   code: Code;
   reasons: R;
   details: Details;
-}): BusinessError<Code, R, Details> => ({
-  code: def.code,
-  reasons: def.reasons,
-  details: def.details,
-  raise(reason, details) {
-    return new DomainError(
-      def.code,
-      reason,
-      details as Record<string, unknown>,
-      def.reasons[reason] ?? def.code,
-    );
-  },
-});
+}): BusinessError<Code, R, Details> => {
+  declared.add(def.code);
+
+  return {
+    code: def.code,
+    reasons: def.reasons,
+    details: def.details,
+    raise(reason, details) {
+      return new DomainError(
+        def.code,
+        reason,
+        details as Record<string, unknown>,
+        def.reasons[reason] ?? def.code,
+      );
+    },
+  };
+};
 
 /**
  * The read-only view of a business error, for anything that documents rather than raises one.

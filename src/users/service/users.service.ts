@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import type { ContextLogger } from '../../shared/logger';
+import type { Logger } from '../../shared/logger';
 import { InjectLogger } from '../../shared/logger';
 import type { UserId, UserRow } from '../domain';
 import { UserNotFound, UserRegistrationFailed } from '../domain';
@@ -12,7 +12,7 @@ const BLOCKED_DOMAINS = new Set(['blocked.example']);
 
 @Injectable()
 export class UsersService {
-  @InjectLogger() private readonly logger!: ContextLogger;
+  @InjectLogger() private readonly logger: Logger;
 
   constructor(private readonly users: UsersRepository) {}
 

@@ -32,9 +32,13 @@ Inject it as a property, never with a constructor and never `new Logger()` from 
 ```ts
 @Injectable()
 export class UsersService {
-  @InjectLogger() private readonly logger!: ContextLogger;
+  @InjectLogger() private readonly logger: Logger;
 }
 ```
+
+No `!` is needed — the NestJS tsconfig preset sets `strictPropertyInitialization: false`, because
+DI assigns the property. `Logger` is the class-bound logger application code injects; `LoggerService`
+is the root, used only by `app.useLogger()` and as the factory behind the decorator.
 
 The context comes from Nest's `INQUIRER` token, so a class never names itself. The provider is
 `Scope.TRANSIENT`, which gives each consumer its own child logger at bootstrap — one per class, not

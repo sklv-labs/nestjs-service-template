@@ -3,7 +3,7 @@ import { Catch, HttpStatus } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
 import { DomainError } from '../../errors';
-import type { ContextLogger } from '../../logger';
+import type { Logger } from '../../logger';
 import { InjectLogger } from '../../logger';
 import { statusForError } from '../error-status';
 
@@ -18,7 +18,7 @@ import { statusForError } from '../error-status';
  */
 @Catch(DomainError)
 export class DomainExceptionFilter implements ExceptionFilter {
-  @InjectLogger() private readonly logger!: ContextLogger;
+  @InjectLogger() private readonly logger: Logger;
 
   constructor(private readonly adapterHost: HttpAdapterHost) {}
 

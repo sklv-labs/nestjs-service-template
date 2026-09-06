@@ -6,29 +6,28 @@ import type { Level, Logger as PinoLogger } from 'pino';
 import { LOGGER_INSTANCE, LOGGER_REQUEST_ID_KEY } from './logger.options';
 
 /**
- * Structured logging with the correlation id attached automatically.
+ * The root logger, and the adapter Nest itself logs through.
  *
- * The whole design is about what happens per line: one property merge, and nothing else. No stack
- * inspection to guess the calling class, no context object rebuilt per call, no per-key validation.
- * Static fields live in pino's bindings and a class context is a child logger created once.
+ * Application code does not inject this — it injects {@link Logger}, which is already bound to a
+ * context. This exists for `app.useLogger()`, so framework output shares the format, and as the
+ * factory behind `@InjectLogger()`.
  *
- * CLS is optional. Without it the logger still works, just without `requestId` — so this module can
- * be used on its own.
+ * The design rule is what happens *per line*: one property merge, nothing else. Static fields live
+ * in pino's bindings, bound once, and a class context is a child logger created once.
+ *
+ * CLS is optional. Without it everything still works, just without the correlation id.
  */
 @Injectable()
-export class Logger implements NestLoggerService {
+export class LoggerService implements NestLoggerService {
   constructor(
     @Inject(LOGGER_INSTANCE) private readonly root: PinoLogger,
     @Inject(LOGGER_REQUEST_ID_KEY) private readonly idKey: string,
     @Optional() private readonly cls?: ClsService,
   ) {}
 
-  /**
-   * A logger bound to a class or subsystem. The child is created once, so the context costs
-   * nothing per line.
-   */
-  forContext(context: string): ContextLogger {
-    return new ContextLogger(this.root.child({ context }), this.idKey, this.cls);
+  /** A logger bound to a class or subsystem. The child is created once. */
+  forContext(context: string): Logger {
+    return new Logger(this.root.child({ context }), this.idKey, this.cls);
   }
 
   /** The pino instance, for anything needing a raw stream or a custom child. */
@@ -61,8 +60,11 @@ export class Logger implements NestLoggerService {
   }
 }
 
-/** A logger whose context is already bound. Returned by `Logger.forContext`. */
-export class ContextLogger {
+/**
+ * What application code injects, via `@InjectLogger()`. Its context is already bound, so calls read
+ * as `logger.debug({ orderId }, 'Order settled')` with no ceremony.
+ */
+export class Logger {
   constructor(
     private readonly logger: PinoLogger,
     private readonly idKey: string,
@@ -77,22 +79,26 @@ export class ContextLogger {
     write(this.logger, this.idKey, this.cls, 'warn', message, params);
   debug = (message: unknown, ...params: unknown[]) =>
     write(this.logger, this.idKey, this.cls, 'debug', message, params);
+
+  /** A further-nested child, for a subsystem inside one class. */
+  child(bindings: Record<string, unknown>): Logger {
+    return new Logger(this.logger.child(bindings), this.idKey, this.cls);
+  }
 }
 
 /**
  * `cls.getId()` throws outside a context, which a startup task or a cron tick legitimately is.
- * Losing the id is fine there; crashing is not.
+ * Losing the id there is fine; crashing is not.
  */
 const requestId = (key: string, cls?: ClsService): Record<string, string> | undefined =>
   cls?.isActive() ? { [key]: cls.getId() } : undefined;
 
 /**
- * Nest's `LoggerService` passes the context as a trailing string, so it is stripped here and
- * promoted to a field.
+ * Nest's `LoggerService` passes the context as a trailing string, so it is stripped and promoted to
+ * a field.
  *
- * This applies **only** to calls arriving through Nest. `ContextLogger` already has its context
- * bound into a child, and applying the same heuristic there swallows the message of any
- * `log(fields, 'message')` call — which it did, until it didn't.
+ * This applies **only** to calls arriving through Nest. {@link Logger} already has its context
+ * bound, and applying the same heuristic there swallows the message of `log(fields, 'message')`.
  */
 const writeFromNest = (
   logger: PinoLogger,

@@ -2,7 +2,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
-import type { ContextLogger } from '../../logger';
+import type { Logger } from '../../logger';
 import { InjectLogger } from '../../logger';
 
 /**
@@ -17,7 +17,7 @@ import { InjectLogger } from '../../logger';
  */
 @Catch()
 export class UnhandledExceptionFilter implements ExceptionFilter {
-  @InjectLogger() private readonly logger!: ContextLogger;
+  @InjectLogger() private readonly logger: Logger;
 
   constructor(private readonly adapterHost: HttpAdapterHost) {}
 

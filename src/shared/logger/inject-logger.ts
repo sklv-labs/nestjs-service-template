@@ -2,8 +2,8 @@ import { Inject, Scope } from '@nestjs/common';
 import type { Provider } from '@nestjs/common';
 import { INQUIRER } from '@nestjs/core';
 
-import type { ContextLogger } from './logger.service';
-import { Logger } from './logger.service';
+import type { Logger } from './logger.service';
+import { LoggerService } from './logger.service';
 
 export const LOGGER = Symbol('LOGGER');
 
@@ -13,7 +13,7 @@ export const LOGGER = Symbol('LOGGER');
  * ```ts
  * @Injectable()
  * export class UsersService {
- *   @InjectLogger() private readonly logger!: ContextLogger;
+ *   @InjectLogger() private readonly logger: Logger;
  * }
  * ```
  *
@@ -26,7 +26,7 @@ export const InjectLogger = (): PropertyDecorator & ParameterDecorator => Inject
 export const loggerProvider: Provider = {
   provide: LOGGER,
   scope: Scope.TRANSIENT,
-  inject: [Logger, INQUIRER],
-  useFactory: (root: Logger, inquirer: object | undefined): ContextLogger =>
+  inject: [LoggerService, INQUIRER],
+  useFactory: (root: LoggerService, inquirer: object | undefined): Logger =>
     root.forContext(inquirer?.constructor?.name ?? 'App'),
 };

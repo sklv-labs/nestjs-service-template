@@ -5,7 +5,7 @@ import { createLogger } from './create-logger';
 import { LOGGER, loggerProvider } from './inject-logger';
 import type { LoggerModuleOptions } from './logger.options';
 import { DEFAULT_REQUEST_ID_KEY, LOGGER_INSTANCE, LOGGER_REQUEST_ID_KEY } from './logger.options';
-import { Logger } from './logger.service';
+import { LoggerService } from './logger.service';
 
 const toInstance = (options: LoggerModuleOptions) =>
   'instance' in options ? options.instance : createLogger(options);
@@ -26,10 +26,10 @@ export class LoggerModule {
       providers: [
         { provide: LOGGER_INSTANCE, useValue: toInstance(options) },
         { provide: LOGGER_REQUEST_ID_KEY, useValue: toIdKey(options) },
-        Logger,
+        LoggerService,
         loggerProvider,
       ],
-      exports: [Logger, LOGGER, LOGGER_INSTANCE],
+      exports: [LoggerService, LOGGER, LOGGER_INSTANCE],
     };
   }
 
@@ -50,10 +50,10 @@ export class LoggerModule {
           inject: config.inject ?? [],
           useFactory: async (...args: never[]) => toIdKey(await config.useFactory(...args)),
         },
-        Logger,
+        LoggerService,
         loggerProvider,
       ],
-      exports: [Logger, LOGGER, LOGGER_INSTANCE],
+      exports: [LoggerService, LOGGER, LOGGER_INSTANCE],
     };
   }
 }

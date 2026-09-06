@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import type { ContextLogger } from '../../shared/logger';
+import type { Logger } from '../../shared/logger';
 import { InjectLogger } from '../../shared/logger';
 import type { Handler } from '../../shared/operation';
 import type { UserRow } from '../domain';
@@ -26,7 +26,7 @@ export type CreateUserOutput = {
  */
 @Injectable()
 export class CreateUserHandler implements Handler<CreateUserInput, CreateUserOutput> {
-  @InjectLogger() private readonly logger!: ContextLogger;
+  @InjectLogger() private readonly logger: Logger;
 
   constructor(private readonly users: UsersService) {}
 

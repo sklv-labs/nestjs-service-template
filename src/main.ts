@@ -12,7 +12,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
 import { logger } from './logger';
-import { Logger } from './shared/logger';
+import { LoggerService } from './shared/logger';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -32,7 +32,7 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
 
-  app.useLogger(app.get(Logger));
+  app.useLogger(app.get(LoggerService));
 
   const { default: helmet } = await import('@fastify/helmet');
   await app.register(helmet);

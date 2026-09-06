@@ -116,6 +116,14 @@ top-level `contracts/` directory per feature.
 An endpoint is described once in `ui/http/endpoints/<name>.ts` as a plain object passed to
 `endpoint({ … })`: `summary`, `request`, `toInput`, `toResponse`, `success`, `errors`.
 
+**Request schemas are defined in `ui/http/requests.ts`, not inline in the endpoint** — mirroring
+`responses.ts`. An endpoint then reads as wiring (what it accepts, what it returns, how it maps onto
+an operation) instead of burying that under schema definitions, and two endpoints can share a shape:
+`userIdParams` serves any route addressing a single user.
+
+Headers that every endpoint accepts live in `shared/http` (`correlationHeaders`), not redeclared per
+feature — they are transport plumbing, identical everywhere.
+
 `success` is its own field, not an entry in a response array. It is the contract of the handler's
 output, which is what lets `toResponse` be typed `z.input<S>` — a mapper that stops matching the
 contract is a compile error, not a runtime 500. Its schema must be a `ZodObject`, because the

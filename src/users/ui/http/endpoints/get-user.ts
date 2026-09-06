@@ -1,20 +1,13 @@
-import { id } from '../../../../shared/contracts';
-import { endpoint, failure, req } from '../../../../shared/http';
-import type { UserId } from '../../../domain';
+import { endpoint, failure } from '../../../../shared/http';
 import type { GetUserInput, GetUserOutput } from '../../../operation';
 import { userNotFound } from '../error-responses';
+import { userIdParams } from '../requests';
 import { toUserResponse, userResponse } from '../responses';
 
 export const getUser = endpoint({
   summary: 'Fetch a user by id',
 
-  request: {
-    params: req.params({
-      id: id<UserId>('Identifier of the user', {
-        example: '01930000-0000-7000-8000-000000000000',
-      }),
-    }),
-  },
+  request: { params: userIdParams },
 
   toInput: ({ params }): GetUserInput => ({ id: params.id }),
   toResponse: (out: GetUserOutput) => toUserResponse(out.user),

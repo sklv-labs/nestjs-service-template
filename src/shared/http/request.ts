@@ -11,12 +11,26 @@ type WithHeaders = { headers: Record<string, string | string[] | undefined> };
  */
 import { z } from 'zod';
 
+import { str } from '../contracts';
+
 export const req = {
   body: <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict(),
   query: <T extends z.ZodRawShape>(shape: T) => z.object(shape),
   params: <T extends z.ZodRawShape>(shape: T) => z.object(shape),
   headers: <T extends z.ZodRawShape>(shape: T) => z.object(shape),
 };
+
+/**
+ * The correlation header every endpoint accepts.
+ *
+ * Shared rather than redeclared per feature: it is transport plumbing, identical everywhere, and
+ * the description has to stay in step with how `genReqId` treats it.
+ */
+export const correlationHeaders = req.headers({
+  'x-request-id': str('Correlation id (UUID). Generated when absent or not a UUID.', {
+    example: '3f8a1c2e-5b7d-4e9f-9a1b-2c3d4e5f6a7b',
+  }).optional(),
+});
 
 /**
  * `@Headers()` is the one request part Nest will not attach a schema to, so this custom decorator

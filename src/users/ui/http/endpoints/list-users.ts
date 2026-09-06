@@ -1,22 +1,12 @@
-import { int, oneOf, str } from '../../../../shared/contracts';
-import { endpoint, failure, req } from '../../../../shared/http';
+import { endpoint, failure } from '../../../../shared/http';
 import type { ListUsersInput, ListUsersOutput } from '../../../operation';
+import { listUsersQuery } from '../requests';
 import { toUserResponse, userListResponse } from '../responses';
 
 export const listUsers = endpoint({
   summary: 'List users',
 
-  request: {
-    query: req.query({
-      page: int('1-based page number', { min: 1 }).default(1),
-      limit: int('Items per page, max 100', { min: 1, max: 100 }).default(20),
-      search: str('Case-insensitive match on email', { min: 1, max: 100 }).optional(),
-      sort: oneOf(
-        ['createdAt', '-createdAt', 'email', '-email'],
-        'Sort field, prefixed with - for descending',
-      ).default('-createdAt'),
-    }),
-  },
+  request: { query: listUsersQuery },
 
   toInput: ({ query }): ListUsersInput => ({
     page: query.page,

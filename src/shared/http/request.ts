@@ -1,14 +1,16 @@
 import { createParamDecorator } from '@nestjs/common';
-import type { Request } from 'express';
-import { z } from 'zod';
+
+type WithHeaders = { headers: Record<string, string | string[] | undefined> };
 
 /**
- * Builders for the four parts of a request, namespaced so they do not collide with the request
- * part names an endpoint's `toInput` destructures.
+ * Builders for the four parts of a request, namespaced so they do not collide with the request part
+ * names an endpoint's `toInput` destructures.
  *
- * `body` is strict: an unknown key is a 400 rather than a silently dropped field. `query`,
- * `params` and `headers` are not, because proxies, clients and browsers all add their own.
+ * `body` is strict: an unknown key is a 400 rather than a silently dropped field. `query`, `params`
+ * and `headers` are not, because proxies, clients and browsers all add their own.
  */
+import { z } from 'zod';
+
 export const req = {
   body: <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict(),
   query: <T extends z.ZodRawShape>(shape: T) => z.object(shape),
@@ -17,12 +19,11 @@ export const req = {
 };
 
 /**
- * `@Headers()` is the one request part Nest does not let you attach a schema to, so this custom
- * decorator supplies the headers and the pipe validates it — which requires
- * `validateCustomDecorators: true` on `StandardSchemaValidationPipe`.
+ * `@Headers()` is the one request part Nest will not attach a schema to, so this custom decorator
+ * supplies them and the pipe validates — which needs `validateCustomDecorators: true`.
  *
- * Header names are lower-cased by Node, so contracts must spell them that way.
+ * Typed structurally rather than against Fastify, so nothing here depends on the adapter.
  */
 export const RequestHeaders = createParamDecorator(
-  (_data: unknown, ctx) => ctx.switchToHttp().getRequest<Request>().headers,
+  (_data: unknown, ctx) => ctx.switchToHttp().getRequest<WithHeaders>().headers,
 );

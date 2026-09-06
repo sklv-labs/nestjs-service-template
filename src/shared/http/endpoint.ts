@@ -4,12 +4,8 @@ import { z } from 'zod';
 
 import type { BusinessErrorShape } from '../errors';
 
-import {
-  businessErrorExamples,
-  businessErrorResponse,
-  errorResponse,
-  mapErrorStatus,
-} from './error-response';
+import { businessErrorExamples, businessErrorResponse, errorResponse } from './error-contract';
+import { mapErrorStatus } from './error-status';
 import { openApiSchema } from './openapi';
 import { RequestHeaders } from './request';
 

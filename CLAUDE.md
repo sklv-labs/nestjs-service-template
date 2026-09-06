@@ -10,6 +10,43 @@ questions are listed in the README; if a change settles one, update that list.
 
 What follows is a description of how the code currently works, not a rulebook.
 
+## Core components in shared/
+
+Fastify only. Nothing in `shared/` imports Fastify or Express types — middleware types against
+Node's `IncomingMessage`, filters reply through `HttpAdapterHost`.
+
+**`shared/cls`** wraps `nestjs-cls`. The wrapper exists to add three things the library does not do:
+an inbound `x-request-id` becomes the context id, that id is echoed on the response, and ids are on
+by default because `cls.getId()` is what the logger reads. **The store stays empty** — anything an
+app wants in it goes through the `setup` option and its shape is the app's own `ClsStore`. Never add
+a field to the store from inside the package.
+
+**`shared/logger`** is pino. The design rule is what happens _per line_: one property merge, nothing
+else. Static fields (`service`, `env`, `version`) live in pino's bindings, bound once. A class
+context is a **child logger created once** by `logger.forContext(name)`. Never reintroduce
+stack-trace inspection to guess the calling class, a context object rebuilt per call, or per-key
+validation — that is what made the retired logger slow.
+
+`src/logger.ts` holds the single pino instance as a module-level const, because Fastify needs it
+before Nest exists (`loggerInstance` is an adapter option). `LoggerModule.forRoot({ instance })`
+then reuses it, so the framework's access log and application logs share one stream, one format and
+one redaction policy. Do not let `LoggerModule` build a second instance.
+
+The correlation field is `reqId`, matching Fastify's own. Fastify's `requestIdLogLabel` could rename
+its side instead, but it is deprecated and removed in Fastify 6. It is configurable via
+`requestIdKey`.
+
+**Two exception filters, both narrow.** `DomainExceptionFilter` is `@Catch(DomainError)`;
+`UnhandledExceptionFilter` is `@Catch()` and logs the real cause while returning a body that reveals
+no internals. A single catch-all would silently take over Nest's `HttpException` handling. They are
+registered as `APP_FILTER` in `shared/http/http.module.ts`, so they get DI.
+
+**There is no request-logging interceptor.** Fastify already logs requests, it is faster, and it
+covers requests that never reach Nest — 404s, malformed bodies, plugin rejections. An interceptor is
+structurally blind to those.
+
+Expected failures log at **debug**, bugs at **error**. A 409 is the system working.
+
 ## Operation layer
 
 `<feature>/operation/*.handler.ts` — one handler per scenario, implementing
@@ -122,6 +159,14 @@ Constraints that will bite if you forget them:
   `validateCustomDecorators: true` on the pipe — remove that and header validation silently stops.
 - **A method returning `never` does not narrow control flow.** `businessError().raise()` therefore
   returns the error and the caller writes `throw`.
+- **Nest's context heuristic must not leak into our own logger API.** Nest passes context as a
+  trailing string, so `Logger` strips it. `ContextLogger` must not — its context is already bound,
+  and stripping there swallows the message of `log(fields, 'message')`.
+- **Do not declare `fastify` as a direct dependency.** `@nestjs/platform-fastify` resolves its own,
+  and two copies make `@fastify/helmet`'s peer types disagree with the app's.
+- **Swagger on Fastify needs `@fastify/static`**, or docs fail at boot with a PackageLoader error.
+- **`npm_package_*` are absent under `node dist/main.js`.** Service identity comes from
+  `SERVICE_NAME` / `SERVICE_VERSION`, which is what a container sets.
 - **Type examples as `z.input`, not `z.infer`.** Examples are wire JSON, and a branded id's input
   type is a plain string — `z.infer` would demand a cast in every example.
 - **`BusinessError` is not usable as a parameter type.** `raise` accepts only that error's own

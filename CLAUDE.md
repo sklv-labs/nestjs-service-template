@@ -70,9 +70,20 @@ shape_, not the bare field name — pino matches paths and `*.password` covers o
 logging needs `req.body.password` spelled out. **Adding a secret-bearing field to a contract means
 adding a redact path.** Nothing can un-log a value.
 
-Bodies over `maxBodyBytes` (4096) are replaced with a marker; the `ignore` predicate uses substring
-matching, because a global prefix turns `/health` into `/api/v1/health` and a prefix check silently
-stops ignoring it.
+The response side carries `statusCode`, `durationMs`, `bytes`, headers and — with
+`LOG_RESPONSE_BODY=true` — the payload. **A 5xx logs at `error` level**, everything else at the
+configured level, so the error log is failures rather than traffic.
+
+**Response headers are an allowlist**, not everything: security middleware sets a dozen constant
+headers on every response, which is pure volume. Pass an array or `'all'` to override.
+
+**Response payloads are parsed back to objects before logging.** A serialized body is a string and
+pino's redaction matches object paths, so logging the raw string would bypass redaction entirely.
+Streams and Buffers are logged as a marker rather than consumed.
+
+Bodies over `maxBodyBytes` (4096) are replaced with a marker in both directions; the `ignore`
+predicate uses substring matching, because a global prefix turns `/health` into `/api/v1/health` and
+a prefix check silently stops ignoring it.
 
 Expected failures log at **debug**, bugs at **error**. A 409 is the system working.
 

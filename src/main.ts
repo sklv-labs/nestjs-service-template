@@ -39,7 +39,10 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   app.useLogger(loggerService);
-  registerRequestLogging(app, loggerService, { body: config.logging.requestBody });
+  registerRequestLogging(app, loggerService, {
+    body: config.logging.requestBody,
+    responseBody: config.logging.responseBody,
+  });
 
   const { default: helmet } = await import('@fastify/helmet');
   await app.register(helmet);

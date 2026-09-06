@@ -14,6 +14,7 @@ export class ConfigService extends ServiceBaseConfigService<EnvType> {
     level: this.env.LOG_LEVEL,
     json: this.env.LOG_JSON,
     requestBody: this.env.LOG_REQUEST_BODY,
+    responseBody: this.env.LOG_RESPONSE_BODY,
   };
 
   docs = {

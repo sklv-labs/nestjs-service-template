@@ -66,4 +66,15 @@ export const DEFAULT_REDACT = [
   'req.body.refreshToken',
   'req.body.*.password',
   'req.body.*.token',
+
+  // response logging — the same paths apply outbound
+  'res.headers["set-cookie"]',
+  'res.body.password',
+  'res.body.passwordHash',
+  'res.body.token',
+  'res.body.accessToken',
+  'res.body.refreshToken',
+  'res.body.secret',
+  'res.body.*.password',
+  'res.body.*.token',
 ];

@@ -1,19 +1,31 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 
-import type { LoggerService } from '../logger';
+import type { Logger, LoggerService } from '../logger';
 
 export type RequestLoggingOptions = {
-  /** Log parsed request bodies. Redaction applies, but see the caveat in the module docs. */
+  /** Log parsed request bodies. Redaction applies — see the caveat below. */
   body?: boolean;
-  /** Log request headers. Sensitive ones are redacted by the logger, not dropped here. */
   headers?: boolean;
   query?: boolean;
   /**
-   * Bodies larger than this are replaced with a marker. An upload or a bulk import will otherwise
-   * put megabytes per request into log storage.
+   * Response headers to log. `true` uses the allowlist below; pass an array to choose, or `'all'`
+   * for everything.
+   *
+   * An allowlist rather than everything, because security middleware sets a dozen constant headers
+   * on every response — identical every time, and pure volume in log storage.
+   */
+  responseHeaders?: boolean | 'all' | string[];
+  /**
+   * Log response payloads. Off by default: responses are stripped to their contract, so they rarely
+   * hold credentials, but they routinely hold personal data.
+   */
+  responseBody?: boolean;
+  /**
+   * Bodies larger than this are replaced with a marker, in both directions. An upload or a large
+   * page would otherwise put megabytes per request into log storage.
    */
   maxBodyBytes?: number;
-  /** Paths that should not be logged at all — health probes and docs are pure noise. */
+  /** Paths not worth logging — health probes and docs are pure noise. */
   ignore?: (url: string) => boolean;
   level?: 'info' | 'debug';
 };
@@ -22,39 +34,111 @@ const DEFAULTS = {
   body: true,
   headers: true,
   query: true,
+  responseHeaders: true as boolean | 'all' | string[],
+  responseBody: false,
   maxBodyBytes: 4096,
-  // Substring, not prefix: a global prefix makes the health route `/api/v1/health`, and a
-  // prefix check silently stops ignoring it.
+  // Substring, not prefix: a global prefix makes the health route `/api/v1/health`, and a prefix
+  // check silently stops ignoring it.
   ignore: (url: string) => url.includes('/health') || url.includes('/docs'),
   level: 'info' as const,
 };
 
-type FastifyLike = {
-  addHook: (event: string, handler: (...args: never[]) => void) => void;
-};
+/** Response headers that actually vary or aid diagnosis. */
+const HEADER_ALLOWLIST = [
+  'content-type',
+  'content-length',
+  'location',
+  'cache-control',
+  'etag',
+  'retry-after',
+  'set-cookie',
+  'x-request-id',
+];
 
-const truncate = (body: unknown, max: number): unknown => {
-  if (body === undefined || body === null) {
+const PAYLOAD = Symbol('response.payload');
+
+const pickHeaders = (
+  headers: Record<string, unknown> | undefined,
+  select: boolean | 'all' | string[],
+): Record<string, unknown> | undefined => {
+  if (!headers || select === false) {
     return undefined;
   }
 
-  const size = Buffer.byteLength(JSON.stringify(body) ?? '');
+  if (select === 'all') {
+    return headers;
+  }
 
-  return size > max ? `[body omitted: ${size} bytes]` : body;
+  const keys = Array.isArray(select) ? select : HEADER_ALLOWLIST;
+
+  return Object.fromEntries(
+    keys.filter((key) => headers[key] !== undefined).map((key) => [key, headers[key]]),
+  );
+};
+
+type FastifyLike = { addHook: (event: string, handler: (...args: never[]) => void) => void };
+
+type Req = {
+  method: string;
+  url: string;
+  headers: Record<string, unknown>;
+  query?: unknown;
+  params?: unknown;
+  body?: unknown;
+  [PAYLOAD]?: unknown;
+};
+
+type Reply = {
+  statusCode: number;
+  elapsedTime?: number;
+  getHeaders?: () => Record<string, unknown>;
+};
+
+const cap = (value: unknown, max: number, bytes?: number): unknown => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  const size = bytes ?? Buffer.byteLength(JSON.stringify(value) ?? '');
+
+  return size > max ? `[body omitted: ${size} bytes]` : value;
 };
 
 /**
- * One detailed line per request, on completion.
+ * A serialized payload is a string, and pino's redaction matches object paths — so a JSON body
+ * logged as a string would bypass redaction entirely. Parsing it back is the price of keeping the
+ * response body redactable.
+ */
+const parsePayload = (payload: unknown, max: number): unknown => {
+  if (typeof payload !== 'string') {
+    // A stream or Buffer: logging it would consume or bloat it.
+    return payload === undefined ? undefined : '[non-serializable payload]';
+  }
+
+  const bytes = Buffer.byteLength(payload);
+
+  if (bytes > max) {
+    return `[body omitted: ${bytes} bytes]`;
+  }
+
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return payload;
+  }
+};
+
+/**
+ * One detailed line per request, on completion, covering both directions.
  *
  * Registered as a Fastify hook rather than a Nest interceptor so it also covers requests Nest never
- * routes — 404s, malformed bodies, plugin rejections — which is exactly where you want detail.
+ * routes — 404s, malformed bodies, plugin rejections — which is exactly where detail is wanted.
  * Fastify's own two-line access log is disabled in favour of this.
  *
- * **On logging bodies.** Redaction is the only thing standing between this and credentials in log
- * storage forever. The paths in the logger's `redact` list must match the shape produced here
- * (`req.body.password`, not `password`), and adding a new secret-bearing field to a contract means
- * adding a redact path. This is opt-out per environment for a reason: log storage is rarely as
- * access-controlled as a database, and nothing here can un-log a value.
+ * **On logging bodies.** Redaction is the only thing standing between this and personal data or
+ * credentials in log storage forever. The paths in the logger's `redact` list must match the shape
+ * produced here (`req.body.password`, `res.body.email`), and adding a sensitive field to a contract
+ * means adding a redact path. Nothing here can un-log a value.
  */
 export const registerRequestLogging = (
   app: NestFastifyApplication,
@@ -63,45 +147,51 @@ export const registerRequestLogging = (
 ): void => {
   const opts = { ...DEFAULTS, ...options };
   const log = logger.forContext('Request');
-  // `Logger` exposes `log`, matching Nest; `info` is pino's name for the same level.
-  const emit = opts.level === 'debug' ? log.debug : log.log;
   const instance = app.getHttpAdapter().getInstance() as unknown as FastifyLike;
 
-  instance.addHook('onResponse', ((
-    request: {
-      method: string;
-      url: string;
-      headers: Record<string, unknown>;
-      query?: unknown;
-      params?: unknown;
-      body?: unknown;
-    },
-    reply: { statusCode: number; elapsedTime?: number },
-    done: () => void,
-  ) => {
-    if (opts.ignore(request.url)) {
+  if (opts.responseBody) {
+    instance.addHook('onSend', ((req: Req, _reply: Reply, payload: unknown, done: () => void) => {
+      req[PAYLOAD] = payload;
+      done();
+    }) as never);
+  }
+
+  instance.addHook('onResponse', ((req: Req, reply: Reply, done: () => void) => {
+    if (opts.ignore(req.url)) {
       done();
       return;
     }
 
+    const allHeaders = reply.getHeaders?.();
+    const headers = pickHeaders(allHeaders, opts.responseHeaders);
+    const bytes = Number(allHeaders?.['content-length'] ?? 0) || undefined;
+
+    // 5xx is our fault and belongs in the error log; everything else is the access log.
+    const emit = reply.statusCode >= 500 ? log.error : opts.level === 'debug' ? log.debug : log.log;
+
     emit(
       {
         req: {
-          method: request.method,
-          url: request.url,
-          ...(opts.headers ? { headers: request.headers } : {}),
-          ...(opts.query ? { query: request.query } : {}),
-          ...(request.params ? { params: request.params } : {}),
-          ...(opts.body ? { body: truncate(request.body, opts.maxBodyBytes) } : {}),
+          method: req.method,
+          url: req.url,
+          ...(opts.headers ? { headers: req.headers } : {}),
+          ...(opts.query ? { query: req.query } : {}),
+          ...(req.params ? { params: req.params } : {}),
+          ...(opts.body ? { body: cap(req.body, opts.maxBodyBytes) } : {}),
         },
         res: {
           statusCode: reply.statusCode,
           durationMs: Math.round((reply.elapsedTime ?? 0) * 100) / 100,
+          ...(bytes ? { bytes } : {}),
+          ...(headers ? { headers } : {}),
+          ...(opts.responseBody ? { body: parsePayload(req[PAYLOAD], opts.maxBodyBytes) } : {}),
         },
       },
-      `${request.method} ${request.url} ${reply.statusCode}`,
+      `${req.method} ${req.url} ${reply.statusCode}`,
     );
 
     done();
   }) as never);
 };
+
+export type { Logger };

@@ -95,6 +95,33 @@ a prefix check silently stops ignoring it.
 
 Expected failures log at **debug**, bugs at **error**. A 409 is the system working.
 
+## API documentation is generated, never written
+
+```
+zod contracts  →  OpenAPI document  →  openapi.json  →  bruno/ collection
+   (source)         (in process)        (committed)       (committed)
+```
+
+`pnpm openapi` writes `openapi.json` by booting Nest **without listening**; `pnpm bruno:generate`
+converts it into `.bru` files; `pnpm bruno:run` executes them against a running service.
+
+Both artefacts are committed, and CI regenerates and diffs them. A failure there means someone
+changed the API without the change appearing in review — that diff is the point, not a nuisance.
+
+**Bruno request files are generated and overwritten.** Never edit one, and never add scripts or
+assertions to one. Hand-written content goes in files the generator does not touch:
+`bruno/collection.bru` for assertions applying to every request, and `bruno/environments/*.bru`.
+
+The generator also wires a flow: a `POST` publishes the id it created via `vars:post-response`, and
+a later path `:id` reads it back as `{{userId}}` — so a run exercises create-then-fetch rather than
+unrelated calls. That wiring is derived from endpoint shape; do not hand-maintain it.
+
+Requests arrive prefilled with the examples declared on the contract fields, which is the concrete
+reason those examples belong on fields rather than beside schemas.
+
+`src/openapi-document.ts` is shared by the running service and the generator, so the served document
+and the committed one cannot describe different APIs.
+
 ## Operation layer
 
 `<feature>/operation/*.handler.ts` — one handler per scenario, implementing

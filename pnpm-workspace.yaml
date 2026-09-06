@@ -4,6 +4,9 @@ allowBuilds:
   esbuild: true
   # Telemetry only.
   '@scarf/scarf': false
+  # A gRPC codegen step pulled in transitively by @usebruno/cli. Only HTTP collections are run
+  # here, so the generated stubs are never used.
+  protobufjs: false
 
 # pnpm 11 holds back very recently published versions as a supply-chain measure. These are our
 # own packages, published from sklv-labs/ts, so the delay adds nothing.

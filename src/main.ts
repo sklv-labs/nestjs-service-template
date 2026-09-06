@@ -7,11 +7,12 @@ import { StandardSchemaValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
 import { logger } from './logger';
+import { buildOpenApiDocument } from './openapi-document';
 import { registerRequestLogging } from './shared/http';
 import { LoggerService } from './shared/logger';
 
@@ -68,14 +69,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(new StandardSchemaValidationPipe({ validateCustomDecorators: true }));
 
   if (config.docs.enabled) {
-    const document = new DocumentBuilder()
-      .setTitle(config.docs.title)
-      .setDescription(config.docs.description)
-      .setVersion(config.docs.version)
-      .addBearerAuth()
-      .build();
-
-    SwaggerModule.setup(config.docs.path, app, SwaggerModule.createDocument(app, document));
+    SwaggerModule.setup(config.docs.path, app, buildOpenApiDocument(app, config));
   }
 
   const { port, host } = config.server;

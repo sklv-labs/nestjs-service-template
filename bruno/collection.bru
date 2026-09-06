@@ -1,0 +1,28 @@
+auth {
+  mode: none
+}
+
+script:post-response {
+  // Requests are regenerated from openapi.json, so nothing hand-written may live in them.
+  // Collection-level scripts and tests survive regeneration; this file is the place for them.
+}
+
+tests {
+  test("responds without a server error", function () {
+    expect(res.getStatus()).to.be.below(500);
+  });
+
+  test("carries a correlation id", function () {
+    // Every response echoes it, generated when the caller sends none — so a missing header means
+    // the request never reached the application.
+    expect(res.getHeader("x-request-id")).to.be.a("string");
+  });
+
+  test("answers with json", function () {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("responds within the budget", function () {
+    expect(res.getResponseTime()).to.be.below(2000);
+  });
+}

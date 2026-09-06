@@ -12,4 +12,100 @@ concurrency:
 
 jobs:
   verify:
-    uses: sklv-labs/.github/.github/workflows/node-ci.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Check formatting
+        run: pnpm format:check
+
+  contracts:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: service
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U admin -d service"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://admin:password@localhost:5433/service
+      LOG_JSON: 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Regenerating and diffing is what stops the contracts and the published document drifting.
+      # A failure here means someone changed the API without the change appearing in review.
+      - name: Regenerate the API contract artefacts
+        run: pnpm bruno:generate
+
+      - name: Fail if the committed contract is stale
+        run: |
+          if ! git diff --exit-code -- openapi.json bruno; then
+            echo "::error::openapi.json or the Bruno collection is out of date. Run 'pnpm bruno:generate' and commit the result."
+            exit 1
+          fi
+
+      - name: Start the service
+        run: |
+          node dist/main.js > /tmp/service.log 2>&1 &
+          for _ in $(seq 1 40); do
+            curl -sf -o /dev/null http://127.0.0.1:3000/api/docs-json && exit 0
+            sleep 0.5
+          done
+          echo "service never became ready"; cat /tmp/service.log; exit 1
+
+      # Executable documentation: every documented request is issued against the running service.
+      - name: Run the Bruno collection
+        run: pnpm bruno:run -- --env ci
+        working-directory: bruno
+
+      - name: Service logs
+        if: failure()
+        run: cat /tmp/service.log

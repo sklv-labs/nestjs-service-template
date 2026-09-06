@@ -2,6 +2,7 @@ import type { DynamicModule, InjectionToken, OptionalFactoryDependency } from '@
 import { Global, Module } from '@nestjs/common';
 
 import { createLogger } from './create-logger';
+import { LOGGER, loggerProvider } from './inject-logger';
 import type { LoggerModuleOptions } from './logger.options';
 import { DEFAULT_REQUEST_ID_KEY, LOGGER_INSTANCE, LOGGER_REQUEST_ID_KEY } from './logger.options';
 import { Logger } from './logger.service';
@@ -26,8 +27,9 @@ export class LoggerModule {
         { provide: LOGGER_INSTANCE, useValue: toInstance(options) },
         { provide: LOGGER_REQUEST_ID_KEY, useValue: toIdKey(options) },
         Logger,
+        loggerProvider,
       ],
-      exports: [Logger, LOGGER_INSTANCE],
+      exports: [Logger, LOGGER, LOGGER_INSTANCE],
     };
   }
 
@@ -49,8 +51,9 @@ export class LoggerModule {
           useFactory: async (...args: never[]) => toIdKey(await config.useFactory(...args)),
         },
         Logger,
+        loggerProvider,
       ],
-      exports: [Logger, LOGGER_INSTANCE],
+      exports: [Logger, LOGGER, LOGGER_INSTANCE],
     };
   }
 }

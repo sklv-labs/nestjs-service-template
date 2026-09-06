@@ -2,7 +2,8 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
-import { Logger } from '../../logger';
+import type { ContextLogger } from '../../logger';
+import { InjectLogger } from '../../logger';
 
 /**
  * The last resort. Anything arriving here is a bug — an unexpected throw, or a response that failed
@@ -16,14 +17,9 @@ import { Logger } from '../../logger';
  */
 @Catch()
 export class UnhandledExceptionFilter implements ExceptionFilter {
-  private readonly logger;
+  @InjectLogger() private readonly logger!: ContextLogger;
 
-  constructor(
-    private readonly adapterHost: HttpAdapterHost,
-    rootLogger: Logger,
-  ) {
-    this.logger = rootLogger.forContext(UnhandledExceptionFilter.name);
-  }
+  constructor(private readonly adapterHost: HttpAdapterHost) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse();

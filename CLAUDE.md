@@ -27,6 +27,20 @@ context is a **child logger created once** by `logger.forContext(name)`. Never r
 stack-trace inspection to guess the calling class, a context object rebuilt per call, or per-key
 validation — that is what made the retired logger slow.
 
+Inject it as a property, never with a constructor and never `new Logger()` from `@nestjs/common`:
+
+```ts
+@Injectable()
+export class UsersService {
+  @InjectLogger() private readonly logger!: ContextLogger;
+}
+```
+
+The context comes from Nest's `INQUIRER` token, so a class never names itself. The provider is
+`Scope.TRANSIENT`, which gives each consumer its own child logger at bootstrap — one per class, not
+per request, and transient does not bubble, so consumers stay singletons. `new Logger(Name)` works
+only because `app.useLogger` reroutes Nest's static logger, and it is untestable.
+
 `src/logger.ts` holds the single pino instance as a module-level const, because Fastify needs it
 before Nest exists (`loggerInstance` is an adapter option). `LoggerModule.forRoot({ instance })`
 then reuses it, so the framework's access log and application logs share one stream, one format and

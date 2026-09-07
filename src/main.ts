@@ -9,8 +9,8 @@ import { SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
-import { fastifyCorrelationOptions } from '@sklv-labs/nestjs-core/cls';
-import { registerRequestLogging } from '@sklv-labs/nestjs-core/http';
+import { appContext } from './config/context';
+import { fastifyContextOptions, registerRequestLogging } from '@sklv-labs/nestjs-core/http';
 import { LoggerService } from '@sklv-labs/nestjs-core/logger';
 import { logger } from './config/logger';
 import { buildOpenApiDocument } from '@sklv-labs/nestjs-core/openapi';
@@ -25,9 +25,9 @@ async function bootstrap(): Promise<void> {
     // is exported by `fastify`, which is a peer of @nestjs/platform-fastify and deliberately not a
     // direct dependency here — two copies of Fastify broke @fastify/helmet's peer types before.
     disableRequestLogging: true,
-    // Correlation id creation, owned by the package's `cls` module — the policy and the context
-    // that carries it belong together; this is only where the transport is handed it.
-    ...fastifyCorrelationOptions(),
+    // Id creation, driven by the field declaration in `config/context.ts`. This is only where the
+    // transport is handed it — Fastify has to decide `req.id` before any framework code runs.
+    ...fastifyContextOptions(appContext),
   });
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {

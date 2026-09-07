@@ -18,9 +18,9 @@
       "types": "./dist/operation/index.d.ts",
       "default": "./dist/operation/index.js"
     },
-    "./cls": {
-      "types": "./dist/cls/index.d.ts",
-      "default": "./dist/cls/index.js"
+    "./context": {
+      "types": "./dist/context/index.d.ts",
+      "default": "./dist/context/index.js"
     },
     "./logger": {
       "types": "./dist/logger/index.d.ts",

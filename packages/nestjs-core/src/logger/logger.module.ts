@@ -1,17 +1,27 @@
-import type { DynamicModule, InjectionToken, OptionalFactoryDependency } from '@nestjs/common';
+import type {
+  DynamicModule,
+  InjectionToken,
+  OptionalFactoryDependency,
+  Provider,
+} from '@nestjs/common';
 import { Global, Module } from '@nestjs/common';
 
 import { createLogger } from './create-logger';
 import { LOGGER, loggerProvider } from './inject-logger';
+import { LOG_CONTEXT } from './log-context';
 import type { LoggerModuleOptions } from './logger.options';
-import { DEFAULT_REQUEST_ID_KEY, LOGGER_INSTANCE, LOGGER_REQUEST_ID_KEY } from './logger.options';
+import { LOGGER_INSTANCE } from './logger.options';
 import { LoggerService } from './logger.service';
 
 const toInstance = (options: LoggerModuleOptions) =>
   'instance' in options ? options.instance : createLogger(options);
 
-const toIdKey = (options: LoggerModuleOptions) =>
-  ('instance' in options ? undefined : options.requestIdKey) ?? DEFAULT_REQUEST_ID_KEY;
+/**
+ * Only registered when the application names a context provider, so `@Optional()` on the
+ * injection is what makes the logger usable with no context at all.
+ */
+const contextProvider = (options: LoggerModuleOptions): Provider[] =>
+  options.context === undefined ? [] : [{ provide: LOG_CONTEXT, useExisting: options.context }];
 
 /**
  * Global and singleton. The logger is on the hot path of every request, so it is never
@@ -25,7 +35,7 @@ export class LoggerModule {
       module: LoggerModule,
       providers: [
         { provide: LOGGER_INSTANCE, useValue: toInstance(options) },
-        { provide: LOGGER_REQUEST_ID_KEY, useValue: toIdKey(options) },
+        ...contextProvider(options),
         LoggerService,
         loggerProvider,
       ],
@@ -44,11 +54,6 @@ export class LoggerModule {
           provide: LOGGER_INSTANCE,
           inject: config.inject ?? [],
           useFactory: async (...args: never[]) => toInstance(await config.useFactory(...args)),
-        },
-        {
-          provide: LOGGER_REQUEST_ID_KEY,
-          inject: config.inject ?? [],
-          useFactory: async (...args: never[]) => toIdKey(await config.useFactory(...args)),
         },
         LoggerService,
         loggerProvider,

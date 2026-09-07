@@ -1,9 +1,10 @@
 import type { LoggerService as NestLoggerService } from '@nestjs/common';
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { ClsService } from 'nestjs-cls';
 import type { Level, Logger as PinoLogger } from 'pino';
 
-import { LOGGER_INSTANCE, LOGGER_REQUEST_ID_KEY } from './logger.options';
+import type { LogContext } from './log-context';
+import { LOG_CONTEXT } from './log-context';
+import { LOGGER_INSTANCE } from './logger.options';
 
 /**
  * The root logger, and the adapter Nest itself logs through.
@@ -15,19 +16,19 @@ import { LOGGER_INSTANCE, LOGGER_REQUEST_ID_KEY } from './logger.options';
  * The design rule is what happens *per line*: one property merge, nothing else. Static fields live
  * in pino's bindings, bound once, and a class context is a child logger created once.
  *
- * CLS is optional. Without it everything still works, just without the correlation id.
+ * The context is optional, and the logger names none of its fields: it merges whatever
+ * `LogContext` hands over. Without a context everything still works, just uncorrelated.
  */
 @Injectable()
 export class LoggerService implements NestLoggerService {
   constructor(
     @Inject(LOGGER_INSTANCE) private readonly root: PinoLogger,
-    @Inject(LOGGER_REQUEST_ID_KEY) private readonly idKey: string,
-    @Optional() private readonly cls?: ClsService,
+    @Optional() @Inject(LOG_CONTEXT) private readonly requestContext?: LogContext,
   ) {}
 
   /** A logger bound to a class or subsystem. The child is created once. */
   forContext(context: string): Logger {
-    return new Logger(this.root.child({ context }), this.idKey, this.cls);
+    return new Logger(this.root.child({ context }), this.requestContext);
   }
 
   /** The pino instance, for anything needing a raw stream or a custom child. */
@@ -36,27 +37,27 @@ export class LoggerService implements NestLoggerService {
   }
 
   log(message: unknown, ...params: unknown[]): void {
-    writeFromNest(this.root, this.idKey, this.cls, 'info', message, params);
+    writeFromNest(this.root, this.requestContext, 'info', message, params);
   }
 
   error(message: unknown, ...params: unknown[]): void {
-    writeFromNest(this.root, this.idKey, this.cls, 'error', message, params);
+    writeFromNest(this.root, this.requestContext, 'error', message, params);
   }
 
   warn(message: unknown, ...params: unknown[]): void {
-    writeFromNest(this.root, this.idKey, this.cls, 'warn', message, params);
+    writeFromNest(this.root, this.requestContext, 'warn', message, params);
   }
 
   debug(message: unknown, ...params: unknown[]): void {
-    writeFromNest(this.root, this.idKey, this.cls, 'debug', message, params);
+    writeFromNest(this.root, this.requestContext, 'debug', message, params);
   }
 
   verbose(message: unknown, ...params: unknown[]): void {
-    writeFromNest(this.root, this.idKey, this.cls, 'trace', message, params);
+    writeFromNest(this.root, this.requestContext, 'trace', message, params);
   }
 
   fatal(message: unknown, ...params: unknown[]): void {
-    writeFromNest(this.root, this.idKey, this.cls, 'fatal', message, params);
+    writeFromNest(this.root, this.requestContext, 'fatal', message, params);
   }
 }
 
@@ -67,31 +68,23 @@ export class LoggerService implements NestLoggerService {
 export class Logger {
   constructor(
     private readonly logger: PinoLogger,
-    private readonly idKey: string,
-    private readonly cls?: ClsService,
+    private readonly requestContext?: LogContext,
   ) {}
 
   log = (message: unknown, ...params: unknown[]) =>
-    write(this.logger, this.idKey, this.cls, 'info', message, params);
+    write(this.logger, this.requestContext, 'info', message, params);
   error = (message: unknown, ...params: unknown[]) =>
-    write(this.logger, this.idKey, this.cls, 'error', message, params);
+    write(this.logger, this.requestContext, 'error', message, params);
   warn = (message: unknown, ...params: unknown[]) =>
-    write(this.logger, this.idKey, this.cls, 'warn', message, params);
+    write(this.logger, this.requestContext, 'warn', message, params);
   debug = (message: unknown, ...params: unknown[]) =>
-    write(this.logger, this.idKey, this.cls, 'debug', message, params);
+    write(this.logger, this.requestContext, 'debug', message, params);
 
   /** A further-nested child, for a subsystem inside one class. */
   child(bindings: Record<string, unknown>): Logger {
-    return new Logger(this.logger.child(bindings), this.idKey, this.cls);
+    return new Logger(this.logger.child(bindings), this.requestContext);
   }
 }
-
-/**
- * `cls.getId()` throws outside a context, which a startup task or a cron tick legitimately is.
- * Losing the id there is fine; crashing is not.
- */
-const requestId = (key: string, cls?: ClsService): Record<string, string> | undefined =>
-  cls?.isActive() ? { [key]: cls.getId() } : undefined;
 
 /**
  * Nest's `LoggerService` passes the context as a trailing string, so it is stripped and promoted to
@@ -102,15 +95,14 @@ const requestId = (key: string, cls?: ClsService): Record<string, string> | unde
  */
 const writeFromNest = (
   logger: PinoLogger,
-  idKey: string,
-  cls: ClsService | undefined,
+  requestContext: LogContext | undefined,
   level: Level,
   message: unknown,
   params: unknown[],
 ): void => {
   const context = typeof params.at(-1) === 'string' ? (params.pop() as string) : undefined;
 
-  write(logger, idKey, cls, level, message, params, context ? { context } : undefined);
+  write(logger, requestContext, level, message, params, context ? { context } : undefined);
 };
 
 /**
@@ -119,14 +111,13 @@ const writeFromNest = (
  */
 const write = (
   logger: PinoLogger,
-  idKey: string,
-  cls: ClsService | undefined,
+  requestContext: LogContext | undefined,
   level: Level,
   message: unknown,
   params: unknown[],
   extra?: Record<string, unknown>,
 ): void => {
-  const bindings = { ...requestId(idKey, cls), ...extra };
+  const bindings = { ...requestContext?.bindings(), ...extra };
 
   if (message instanceof Error) {
     logger[level]({ ...bindings, err: message }, message.message);

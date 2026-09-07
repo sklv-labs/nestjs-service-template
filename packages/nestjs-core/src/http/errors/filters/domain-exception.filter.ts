@@ -2,11 +2,11 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpStatus } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
-import { Context, InjectContext } from '../../context';
-import { DomainError } from '../../errors';
-import type { Logger } from '../../logger';
-import { InjectLogger } from '../../logger';
-import { contractForError } from '../error-status';
+import { Context, InjectContext } from '../../../context';
+import { DomainError } from '../../../errors';
+import type { Logger } from '../../../logger';
+import { InjectLogger } from '../../../logger';
+import { contractForError } from '../error.registry';
 
 /**
  * Renders a business failure as its documented HTTP response.

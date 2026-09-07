@@ -1,7 +1,7 @@
 import { pino } from 'pino';
 import { describe, expect, it } from 'vitest';
 
-import type { LogContext } from './log-context';
+import type { LogContext } from './logger.types';
 import { LoggerService } from './logger.service';
 
 /** Captures what pino actually wrote, so these assert output rather than call arguments. */

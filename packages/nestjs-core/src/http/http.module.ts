@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, DiscoveryModule } from '@nestjs/core';
 
-import { EndpointScanner } from './endpoint-scanner';
-import { DomainExceptionFilter, UnhandledExceptionFilter } from './filters';
+import { EndpointScanner } from './endpoint';
+import { DomainExceptionFilter, UnhandledExceptionFilter } from './errors';
 
 /**
  * Registers the exception filters through DI, so they can inject the logger and the adapter host

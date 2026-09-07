@@ -1,6 +1,6 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 
-import type { Logger, LoggerService } from '../logger';
+import type { Logger, LoggerService } from '../../logger';
 
 export type RequestLoggingOptions = {
   /** Log parsed request bodies. Redaction applies — see the caveat below. */

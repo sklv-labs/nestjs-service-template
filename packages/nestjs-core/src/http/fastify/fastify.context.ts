@@ -1,5 +1,5 @@
-import type { CarrierReader, ContextFields, ContextRegistry, Trust } from '../context';
-import { headersCarrier } from '../context';
+import type { CarrierReader, ContextFields, ContextRegistry, Trust } from '../../context';
+import { headersCarrier } from '../../context';
 
 /**
  * The Fastify adapter options that hand id creation to a context declaration.

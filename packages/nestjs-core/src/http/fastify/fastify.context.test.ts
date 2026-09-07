@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { carrierReader, defineContext, uuidField } from '../context';
-import { fastifyContextOptions } from './fastify-context';
+import { carrierReader, defineContext, uuidField } from '../../context';
+import { fastifyContextOptions } from './fastify.context';
 
 const ID = '11111111-2222-4333-8444-555555555555';
 
@@ -30,7 +30,7 @@ describe('fastifyContextOptions', () => {
 
   it('honours a custom carrier lookup, for a transport that keeps them elsewhere', () => {
     const { genReqId } = fastifyContextOptions(registry, {
-      carrierOf: (req) => carrierReader((req as { meta: unknown }).meta),
+      carrierOf: (req: unknown) => carrierReader((req as { meta: unknown }).meta),
     });
 
     expect(genReqId({ meta: { 'x-request-id': ID } })).toBe(ID);

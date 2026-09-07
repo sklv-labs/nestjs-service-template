@@ -2,13 +2,14 @@ import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 
-import { declaredBusinessErrors } from '../errors';
-import type { Logger } from '../logger';
-import { InjectLogger } from '../logger';
+import { declaredBusinessErrors } from '../../errors';
+import type { Logger } from '../../logger';
+import { InjectLogger } from '../../logger';
 
-import type { DocumentedEndpoint } from './endpoint';
-import { ENDPOINT_METADATA } from './endpoint';
-import { mapErrorContract, mappedErrorCodes } from './error-status';
+import { mapErrorContract, mappedErrorCodes } from '../errors';
+
+import { ENDPOINT_METADATA } from './endpoint.constants';
+import type { DocumentedEndpoint } from './endpoint.types';
 
 /**
  * Builds the error code → HTTP status map at startup by walking every mounted controller method

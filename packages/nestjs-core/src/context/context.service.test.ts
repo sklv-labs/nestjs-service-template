@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { stringField, uuidField } from './field';
-import { defineContext } from './registry';
+import { defineContext } from './context.registry';
+import { stringField, uuidField } from './fields';
 import { inactiveContext, runWithContext } from './testing';
 
 const ID = '11111111-2222-4333-8444-555555555555';

@@ -23,8 +23,8 @@
       "default": "./dist/context/index.js"
     },
     "./context/testing": {
-      "types": "./dist/context/testing.d.ts",
-      "default": "./dist/context/testing.js"
+      "types": "./dist/context/testing/index.d.ts",
+      "default": "./dist/context/testing/index.js"
     },
     "./logger": {
       "types": "./dist/logger/index.d.ts",

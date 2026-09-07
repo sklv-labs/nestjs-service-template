@@ -1,37 +1,8 @@
-import type { InjectionToken } from '@nestjs/common';
-import type { Level, Logger as PinoLogger } from 'pino';
-
-export type LoggerOptions = {
-  /** Emitted on every line so several services can share one stream. */
-  service: string;
-  environment?: string;
-  version?: string;
-  level?: Level;
-  /**
-   * Human-readable output through pino-pretty. Development only: it costs a worker thread and
-   * destroys the structure that makes logs queryable.
-   */
-  pretty?: boolean;
-  /**
-   * Paths scrubbed before writing. The defaults cover credentials and tokens; add domain-specific
-   * ones rather than trusting every call site to remember.
-   */
-  redact?: string[];
-};
-
-/** An already-built pino instance, so Fastify and Nest log through the same one. */
-export type LoggerBackend = LoggerOptions | { instance: PinoLogger };
-
-export type LoggerModuleOptions = LoggerBackend & {
-  /**
-   * A provider satisfying `LogContext`, whose fields are merged into every line. Passed by the
-   * application so the logger keeps no dependency on where context comes from — and so no field
-   * name (`reqId` included) is written here.
-   */
-  context?: InjectionToken;
-};
-
+/** An already-built pino instance, shared by the framework adapter and Nest. */
 export const LOGGER_INSTANCE = Symbol('LOGGER_INSTANCE');
+
+/** A provider satisfying `LogContext`, whose fields are merged into every line. */
+export const LOG_CONTEXT = Symbol('LOG_CONTEXT');
 
 /**
  * Redaction paths must match the *shape that is logged*, not the field name in isolation: pino

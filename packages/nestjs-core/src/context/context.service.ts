@@ -1,12 +1,8 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ClsService } from 'nestjs-cls';
 
-import type { ContextFields, ContextRegistry, StoreOf } from './registry';
-
-export const CONTEXT_REGISTRY = Symbol('CONTEXT_REGISTRY');
-
-/** Store key for the precomputed log bindings. A symbol, so it cannot collide with a field. */
-export const CONTEXT_BINDINGS = Symbol('CONTEXT_BINDINGS');
+import { CONTEXT_BINDINGS, CONTEXT_REGISTRY } from './context.constants';
+import type { ContextFields, ContextRegistry, StoreOf } from './context.types';
 
 /**
  * The unit of work in flight — a request, a consumed message, a job, a cron tick.

@@ -6,11 +6,10 @@ import type {
 } from '@nestjs/common';
 import { Global, Module } from '@nestjs/common';
 
-import { createLogger } from './create-logger';
-import { LOGGER, loggerProvider } from './inject-logger';
-import { LOG_CONTEXT } from './log-context';
-import type { LoggerModuleOptions } from './logger.options';
-import { LOGGER_INSTANCE } from './logger.options';
+import { LOG_CONTEXT, LOGGER_INSTANCE } from './logger.constants';
+import { createLogger } from './logger.factory';
+import { LOGGER, loggerProvider } from './logger.decorator';
+import type { LoggerModuleOptions } from './logger.types';
 import { LoggerService } from './logger.service';
 
 const toInstance = (options: LoggerModuleOptions) =>

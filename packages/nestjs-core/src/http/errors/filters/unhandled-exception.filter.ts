@@ -2,9 +2,9 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
-import { Context, InjectContext } from '../../context';
-import type { Logger } from '../../logger';
-import { InjectLogger } from '../../logger';
+import { Context, InjectContext } from '../../../context';
+import type { Logger } from '../../../logger';
+import { InjectLogger } from '../../../logger';
 
 /**
  * The last resort. Anything arriving here is a bug — an unexpected throw, or a response that failed

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { carrierReader, carrierWriter } from './carrier';
-import { contextField, stringField, uuidField } from './field';
-import { defineContext } from './registry';
+import { carrierReader, carrierWriter } from './carriers';
+import { defineContext } from './context.registry';
+import { contextField, stringField, uuidField } from './fields';
 import { z } from 'zod';
 
 const ID = '11111111-2222-4333-8444-555555555555';

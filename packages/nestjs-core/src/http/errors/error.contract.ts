@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import type { BusinessErrorShape } from '../errors';
-import { reasonsOf } from '../errors';
+import type { BusinessErrorShape } from '../../errors';
+import { reasonsOf } from '../../errors';
 
 /** The error envelope every failure is rendered as. */
 export const errorResponse = z

@@ -5,10 +5,11 @@ import { Module } from '@nestjs/common';
 import type { ClsService } from 'nestjs-cls';
 import { ClsModule as NestClsModule } from 'nestjs-cls';
 
-import { headersCarrier } from './carrier';
-import type { CarrierReader } from './carrier';
-import { CONTEXT_BINDINGS, CONTEXT_REGISTRY, Context } from './context.service';
-import type { ContextFields, ContextRegistry, StoreOf, Trust } from './registry';
+import type { CarrierReader } from './carriers';
+import { headersCarrier } from './carriers';
+import { CONTEXT_BINDINGS, CONTEXT_REGISTRY } from './context.constants';
+import { Context } from './context.service';
+import type { ContextFields, ContextRegistry, StoreOf, Trust } from './context.types';
 
 export type ContextModuleOptions<F extends ContextFields> = {
   registry: ContextRegistry<F>;

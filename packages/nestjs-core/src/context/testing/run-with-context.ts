@@ -2,9 +2,10 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 import { CLS_ID, ClsService } from 'nestjs-cls';
 
-import { carrierReader } from './carrier';
-import { CONTEXT_BINDINGS, Context } from './context.service';
-import type { ContextFields, ContextRegistry, StoreOf } from './registry';
+import { carrierReader } from '../carriers';
+import { CONTEXT_BINDINGS } from '../context.constants';
+import { Context } from '../context.service';
+import type { ContextFields, ContextRegistry, StoreOf } from '../context.types';
 
 /**
  * Runs a callback inside a populated context, with no transport involved.

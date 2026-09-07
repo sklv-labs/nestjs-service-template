@@ -402,6 +402,27 @@ LOG_JSON=true node dist/src/main.js
 If a run genuinely needs a full environment and none exists, use a throwaway path and point at it
 explicitly rather than writing `.env`.
 
+## Package layout
+
+An area per exported subpath; inside it, one file per role. `@sklv-labs/nestjs-core/README.md`
+carries the tree — the rules are what matter here:
+
+- **Role suffix when a folder mixes roles**: `.module`, `.service`, `.types`, `.constants`,
+  `.factory`, `.decorator`, `.filter`, `.writer`. When every file in a folder does the same kind of
+  thing, the noun stands alone — `openapi/{document,context-headers,schema}.ts` are all builders,
+  and a suffix there is letters without information. Do not apply the convention mechanically.
+- **Sub-folder when an area holds more than one concern**, or is about to: `context/carriers/` has
+  one implementation and will have one per transport.
+- **DI tokens go in `*.constants.ts`**, never in the service or options file that happens to use
+  them first. A module importing a service just to reach a symbol has a dependency it does not need.
+- **New file? Match the area's naming before inventing one.** The flat layout arrived by accretion:
+  `create-logger.ts` sat next to `logger.service.ts`, and `http/` reached nine files across five
+  concerns before anyone looked.
+
+**Internal structure is not the public surface.** Imports resolve through the area barrel named in
+the `exports` map, so restructuring an area is not a consumer-visible change — the last one moved
+34 files and edited zero lines of `src/`.
+
 ## Tests
 
 Vitest, unit tests, co-located as `*.test.ts` beside the code they cover.

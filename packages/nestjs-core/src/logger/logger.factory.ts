@@ -1,7 +1,7 @@
 import pino from 'pino';
 
-import type { LoggerOptions } from './logger.options';
-import { DEFAULT_REDACT } from './logger.options';
+import { DEFAULT_REDACT } from './logger.constants';
+import type { LoggerOptions } from './logger.types';
 
 /**
  * Builds the one pino instance the process uses.

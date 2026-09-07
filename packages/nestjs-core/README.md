@@ -21,6 +21,47 @@ the design is still moving. Not published yet.
 There is no root export. A consumer names the area it depends on, which keeps the areas from
 growing into each other.
 
+## Layout
+
+An area per subpath, and within it one file per role:
+
+```
+context/
+├── context.constants.ts     DI tokens and store keys
+├── context.types.ts         the area's contract: ContextRegistry, StoreOf, Trust
+├── context.registry.ts      defineContext
+├── context.module.ts
+├── context.service.ts       Context
+├── carriers/                carrier.types.ts, object.carrier.ts   (rmq, bullmq next)
+├── fields/                  field.types.ts, field.builders.ts
+└── testing/                 run-with-context.ts
+http/
+├── http.module.ts
+├── endpoint/                types, factory, decorator, scanner, constants
+├── errors/                  error.contract.ts, error.registry.ts, filters/
+├── request/                 request.builders.ts, request.decorator.ts
+├── logging/                 request-logging.ts
+└── fastify/                 fastify.context.ts
+```
+
+Three rules produce that:
+
+**A role suffix when a folder mixes roles** — `.module`, `.service`, `.types`, `.constants`,
+`.factory`, `.decorator`, `.filter`, `.writer`. Where every file in a folder does the same kind of
+thing, the noun stands alone: `openapi/{document,context-headers,schema}.ts` are all builders, and
+suffixing them would add letters, not information.
+
+**A sub-folder when an area holds more than one concern**, or when it is about to. `carriers/` has
+one implementation today and will have one per transport; `http/` had nine files spanning endpoint
+description, error rendering, request parsing, logging and the Fastify binding.
+
+**Tokens live in `*.constants.ts`.** They are the injectable surface, so they belong somewhere
+discoverable — and a module that imports a service only to reach a symbol it declared has a
+dependency it does not need.
+
+**Internal structure is not the public surface.** Every import above resolves through the area
+barrel named in `exports`, so this whole layout changed without a single consumer edit.
+
 ## Rules
 
 **Nothing here imports from the service.** This project has its own `tsconfig.json`, so the

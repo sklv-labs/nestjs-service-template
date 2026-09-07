@@ -103,8 +103,7 @@ jobs:
 
       # Executable documentation: every documented request is issued against the running service.
       - name: Run the Bruno collection
-        run: pnpm bruno:run -- --env ci
-        working-directory: bruno
+        run: pnpm bruno:run --env ci
 
       - name: Service logs
         if: failure()

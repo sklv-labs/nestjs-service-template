@@ -8,7 +8,7 @@ every request is there, prefilled with the examples declared on the contracts.
 ```bash
 pnpm openapi          # contracts  → openapi.json
 pnpm bruno:generate   # openapi.json → this collection
-pnpm bruno:run        # run it against a running service
+pnpm bruno:run        # run it against a running service (add --env ci for the CI host)
 ```
 
 `openapi.json` and this collection are both committed, so a contract change shows up in review as a

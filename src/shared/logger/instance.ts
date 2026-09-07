@@ -1,4 +1,6 @@
-import { getAppName, getAppVersion, getEnvironment } from '@sklv-labs/core/environment';
+import { getEnvironment } from '@sklv-labs/core/environment';
+
+import { name, version } from '../../../package.json';
 
 import { createLogger } from './create-logger';
 
@@ -17,10 +19,11 @@ import { createLogger } from './create-logger';
  * service keeps.
  */
 export const logger = createLogger({
-  // npm_package_* only exist when started through a package script, and a container runs
-  // `node dist/src/main.js`. SERVICE_NAME/VERSION are what deployment actually sets.
-  service: process.env.SERVICE_NAME ?? getAppName(),
-  version: process.env.SERVICE_VERSION ?? getAppVersion(),
+  // SERVICE_NAME/VERSION are what deployment sets, and they win. The fallback is resolved at
+  // compile time rather than from `npm_package_*`, which is empty under `node dist/src/main.js`
+  // and made every line in CI read `"service":"unknown"`.
+  service: process.env.SERVICE_NAME ?? name,
+  version: process.env.SERVICE_VERSION ?? version,
   environment: getEnvironment(),
   level: (process.env.LOG_LEVEL as never) ?? 'info',
   pretty: process.env.LOG_JSON !== 'true',

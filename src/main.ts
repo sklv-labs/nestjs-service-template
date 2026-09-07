@@ -37,6 +37,10 @@ async function bootstrap(): Promise<void> {
     // One instance for both: Fastify's access log and the application's own lines.
     loggerInstance: logger,
     // Ours replaces it: one detailed line per request instead of Fastify's incoming/completed pair.
+    // Deprecated in Fastify 5.12 (FSTDEP023) and removed in 6, where it becomes
+    // `logController: new LogController({ disableRequestLogging: true })`. Waiting: `LogController`
+    // is exported by `fastify`, which is a peer of @nestjs/platform-fastify and deliberately not a
+    // direct dependency here — two copies of Fastify broke @fastify/helmet's peer types before.
     disableRequestLogging: true,
     // Disabled so genReqId always runs — Fastify's own header extraction would accept any inbound
     // string, and correlationId validates it first. The result becomes `req.id`, which the CLS

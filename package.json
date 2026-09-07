@@ -23,7 +23,7 @@
     "test:cov": "vitest run --coverage --passWithNoTests",
     "openapi": "pnpm build && node --env-file-if-exists=.env.example dist/scripts/generate-openapi.js",
     "bruno:generate": "pnpm openapi && node dist/scripts/generate-bruno.js",
-    "bruno:run": "bru run -r",
+    "bruno:run": "cd bruno && bru run -r",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",

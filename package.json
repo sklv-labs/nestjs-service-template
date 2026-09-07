@@ -15,7 +15,7 @@
     "clean": "rm -rf dist coverage *.tsbuildinfo packages/*/dist packages/*/*.tsbuildinfo",
     "start": "node dist/src/main.js",
     "start:dev": "pnpm build && concurrently -k -n tsc,app -c blue,green \"tsc -b --watch\" \"node --watch dist/src/main.js\"",
-    "type-check": "tsc -b --force",
+    "type-check": "tsc -b --force && tsc -p tsconfig.test.json",
     "lint": "oxlint --type-aware",
     "lint:fix": "oxlint --type-aware --fix",
     "test": "vitest run --passWithNoTests",

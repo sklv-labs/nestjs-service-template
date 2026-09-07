@@ -175,18 +175,39 @@ index does not fragment the way v4 does. `timestamps` supplies `created_at` and 
 
 `pnpm db:push` is for local iteration. Use `db:generate` + `db:migrate` for anything shared.
 
+## Tests
+
+Unit tests, co-located as `*.test.ts`, run by Vitest:
+
+```bash
+pnpm test          # vitest run
+pnpm test:watch
+pnpm type-check    # also checks the tests, which tsc -b does not see
+```
+
+`tsconfig.json` excludes `*.test.ts` so tests stay out of `dist` — which means `tsc -b` never looks
+at them, and Vitest strips types with esbuild rather than checking them. `tsconfig.test.json` is
+what closes that gap, and `type-check` runs both.
+
+What is covered is the part where a mistake is silent: the context declaration (trust boundaries,
+validation, generation, propagation, writability) and the logger's call shapes. Enter a context with
+`runWithContext` from `@sklv-labs/nestjs-core/context/testing` rather than restating what the
+middleware does, so a test cannot pass by assembling a context production never produces.
+
+Nothing tests the HTTP layer yet. `app.inject()` is the tool for that; the Bruno collection covers
+the wire contract in the meantime.
+
 ## What is missing, and why
 
-The structured logger, error taxonomy, transaction propagation, CLS context and OpenAPI helpers
-used to come from `@sklv-labs/ts-nestjs-*` packages. Those were retired, so this uses the framework
-directly: Nest's `Logger`, its built-in HTTP exceptions, `@nestjs/swagger` and `@nestjs/terminus`.
-
-Two consequences:
-
-- **No `@Transactional()`.** Use `db.transaction(tx => ...)` and pass the handle through.
-- **No request-scoped context**, so log lines carry no correlation id.
-
-Both are seams for the rewritten packages, and how they land will change the shape here.
+- **No `@Transactional()`.** Use `db.transaction(tx => ...)` and pass the handle through. It lived
+  in a retired `@sklv-labs/ts-nestjs-database`, and is a seam for the rewrite.
+- **No transport but HTTP.** The context carries fields over a `CarrierReader`/`CarrierWriter`, so
+  RMQ, BullMQ and WebSockets each need a carrier and a mount point — around twenty lines apiece,
+  deliberately unwritten until a transport actually exists.
+- **No outbound propagation in use.** `context.headers()` and `context.inject()` are there and
+  tested; nothing in this service calls anything downstream yet.
+- **No tracing.** `trace_id`/`span_id` belong to OpenTelemetry and must be read live per log line,
+  not snapshotted into the store — a request has one trace but many spans.
 
 `typescript/consistent-type-imports` is disabled in `@sklv-labs/dev-configs/oxlint/nestjs.json`,
 because Nest reads constructor parameter types from `design:paramtypes` at runtime and the rule's

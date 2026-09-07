@@ -1,0 +1,10 @@
+{
+  // `tsconfig.json` excludes `*.test.ts` so tests stay out of `dist`, which also means `tsc -b`
+  // never looks at them. Without this they would be checked by nothing: vitest strips types with
+  // esbuild rather than checking them.
+  "extends": "@sklv-labs/dev-configs/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*", "scripts/**/*", "packages/*/src/**/*"]
+}

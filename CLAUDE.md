@@ -402,6 +402,33 @@ LOG_JSON=true node dist/src/main.js
 If a run genuinely needs a full environment and none exists, use a throwaway path and point at it
 explicitly rather than writing `.env`.
 
+## Tests
+
+Vitest, unit tests, co-located as `*.test.ts` beside the code they cover.
+
+**Type-check the tests.** `tsconfig.json` excludes `*.test.ts` to keep them out of `dist`, so
+`tsc -b` never sees them, and Vitest strips types with esbuild rather than checking them. Without
+`tsconfig.test.json` — which `pnpm type-check` runs — a test would be checked by nothing.
+
+**Enter a context with `runWithContext`**, from `@sklv-labs/nestjs-core/context/testing`, never by
+hand-setting store keys. It builds the store the way the module's middleware does, so a test cannot
+pass because it assembled a context production would never produce. `inactiveContext()` is for
+asserting the outside-a-context behaviour, which is where the guards live.
+
+**Assert what was written, not what was called.** The logger tests parse the lines pino actually
+emitted through a capture stream. A spy on `logger.info` would have passed while the message was
+being filed under the wrong key, which is exactly the bug that shipped once.
+
+**Two regressions have tests and must keep them.** A bound logger's `debug({ fields }, 'message')`
+must not treat the message as a context — that heuristic belongs only to calls arriving from Nest,
+and applying it here swallowed messages. And an `internal` context field must be ignored at `edge`
+trust; that one is a security property, not a behaviour.
+
+Prefer unit tests over a Nest DI container: the declaration and the services take their
+dependencies as constructor arguments, so a test needs no module. Nothing covers the HTTP layer
+yet — `app.inject()` is the tool when it does, and the Bruno collection covers the wire contract in
+the meantime.
+
 ## Mechanical constraints — these are not stylistic
 
 These are runtime facts, and they hold whatever the architecture turns into.

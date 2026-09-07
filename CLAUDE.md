@@ -10,19 +10,40 @@ questions are listed in the README; if a change settles one, update that list.
 
 What follows is a description of how the code currently works, not a rulebook.
 
-## Core components in shared/
+## The shared runtime code is a package, not a folder
 
-Fastify only. Nothing in `shared/` imports Fastify or Express types — middleware types against
+It lives in `packages/nestjs-core` as `@sklv-labs/nestjs-core`, consumed over `workspace:*` through
+an exports map with no root export — `@sklv-labs/nestjs-core/logger`, `/http`, `/cls` and so on.
+Deep imports past those subpaths do not resolve, so the surface is the map rather than the file
+tree. Migrating it to sklv-labs/ts is then a directory move plus a published version range.
+
+Consequences that are easy to get wrong:
+
+- **Never import from the service inside the package.** No `src/config`, no reading this service's
+  `package.json`. Composition — anything that reads the environment — stays in `src/`, which is why
+  the pino instance lives in `src/config/logger.ts` while `createLogger` is exported by the package.
+- **New dependencies go in the package's own manifest**, as a peer plus a devDependency. A runtime
+  library the consumer must share a single copy of (`nestjs-cls`, `pino`, `zod`, NestJS itself) is
+  always a peer: two copies of `nestjs-cls` means two async local storages and an empty context.
+- **`tsc -b`, not `tsc`.** Project references build the package first; the service then compiles
+  against `dist/*.d.ts` like any installed consumer. `type-check` is `tsc -b --force`, because
+  `--noEmit` is rejected for composite projects (TS6304/TS6310) and a plain `tsc -b` silently
+  short-circuits when everything is up to date.
+- **A new package needs its manifest copied in the Dockerfile.** `node_modules/@sklv-labs/*` is a
+  symlink into `packages/`, so the image needs each package's `package.json` and `dist` or the
+  service will not boot.
+
+Fastify only. Nothing in the package imports Fastify or Express types — middleware types against
 Node's `IncomingMessage`, filters reply through `HttpAdapterHost`.
 
-**`shared/cls`** wraps `nestjs-cls`. The wrapper exists to add what the library does not do: an
+**`cls`** wraps `nestjs-cls`. The wrapper exists to add what the library does not do: an
 inbound `x-request-id` becomes the context id, that id is echoed on the response, ids are on by
 default because the logger and the error filters read them, and `RequestContext` makes the context
 readable without repeating its guards. **The store stays empty** — anything an app wants in it goes
 through the `setup` option and its shape is the app's own `ClsStore`. Never add a field to the store
 from inside the package.
 
-**The correlation id policy lives in `shared/cls/correlation-id.ts`, never at a call site.** Which
+**The correlation id policy lives in `cls/correlation-id.ts`, never at a call site.** Which
 header carries it, which inbound values are trusted, and how one is minted are one unit, because
 they are one decision. Accepting an inbound id is a security boundary: the header is
 caller-controlled and its value is stamped on every line for that request, so only a UUID is
@@ -51,7 +72,7 @@ shape is the app's `ClsStore`, rather than by key.
 it went unpopulated for a while, which made the contract describe something no response ever
 contained.
 
-**`shared/logger`** is pino. The design rule is what happens _per line_: one property merge, nothing
+**`logger`** is pino. The design rule is what happens _per line_: one property merge, nothing
 else. Static fields (`service`, `env`, `version`) live in pino's bindings, bound once. A class
 context is a **child logger created once** by `logger.forContext(name)`. Never reintroduce
 stack-trace inspection to guess the calling class, a context object rebuilt per call, or per-key
@@ -75,10 +96,10 @@ The context comes from Nest's `INQUIRER` token, so a class never names itself. T
 per request, and transient does not bubble, so consumers stay singletons. `new Logger(Name)` works
 only because `app.useLogger` reroutes Nest's static logger, and it is untestable.
 
-`shared/logger/instance.ts` holds the single pino instance as a module-level const, because Fastify
+`src/config/logger.ts` holds the single pino instance as a module-level const, because Fastify
 needs it before Nest exists (`loggerInstance` is an adapter option). It is the one file in
-`shared/logger` the barrel does not export: everything else there is library code, that file is the
-application composing it, and it is imported by path for exactly that reason. `LoggerModule.forRoot({ instance })`
+the service rather than the package: everything in `logger` is library code, and an instance built
+from this service's environment and its own `package.json` is not. `LoggerModule.forRoot({ instance })`
 then reuses it, so the framework's access log and application logs share one stream, one format and
 one redaction policy. Do not let `LoggerModule` build a second instance.
 
@@ -89,7 +110,7 @@ its side instead, but it is deprecated and removed in Fastify 6. It is configura
 **Two exception filters, both narrow.** `DomainExceptionFilter` is `@Catch(DomainError)`;
 `UnhandledExceptionFilter` is `@Catch()` and logs the real cause while returning a body that reveals
 no internals. A single catch-all would silently take over Nest's `HttpException` handling. They are
-registered as `APP_FILTER` in `shared/http/http.module.ts`, so they get DI.
+registered as `APP_FILTER` in the package's `http/http.module.ts`, so they get DI.
 
 **An inbound `x-request-id` is honoured only when it is a UUID.** The header is caller-controlled,
 so an arbitrary value would be stamped on every log line for that request — a way to inject
@@ -151,7 +172,7 @@ unrelated calls. That wiring is derived from endpoint shape; do not hand-maintai
 Requests arrive prefilled with the examples declared on the contract fields, which is the concrete
 reason those examples belong on fields rather than beside schemas.
 
-`shared/openapi/document.ts` is shared by the running service and the generator, so the served
+`openapi/document.ts` is shared by the running service and the generator, so the served
 document and the committed one cannot describe different APIs. It takes plain metadata rather than
 `ConfigService`, because **nothing about the current environment may reach the document** — the
 environment name once appeared in its description, which made the artefact differ between a laptop
@@ -197,7 +218,7 @@ endpoint's definition across files. Name them `bodySchema` / `paramsSchema` / `q
 rather than endpoints: a dozen routes still share one user shape. `userResponse` is used by two
 endpoints and is what `$ref` points at, so inlining it would fork the component.
 
-Headers that every endpoint accepts live in `shared/http` (`correlationHeaders`), not redeclared per
+Headers that every endpoint accepts live in the package's `http` (`correlationHeaders`), not redeclared per
 feature — they are transport plumbing, identical everywhere.
 
 `success` is its own field, not an entry in a response array. It is the contract of the handler's
@@ -234,7 +255,7 @@ uses it. `businessErrorResponse` and `paginated` name theirs too, because `.exte
 helpers produce new anonymous schemas. Request bodies stay inlined — `@ApiBody` takes a raw schema,
 not a standard schema, so there is no hoisting path for them.
 
-Use the field builders in `shared/contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
+Use the field builders in `contracts/fields.ts` (`id`, `email`, `str`, `int`, `bool`,
 `isoDate`, `oneOf`) rather than raw zod in contracts. The description is the first argument. Request
 parts use `req.body` / `req.query` / `req.params` / `req.headers`; the namespace exists so the
 builders do not collide with the part names `toInput` destructures.

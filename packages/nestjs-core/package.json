@@ -1,0 +1,79 @@
+{
+  "name": "@sklv-labs/nestjs-core",
+  "version": "0.0.0",
+  "description": "Transport-agnostic building blocks for NestJS services: context, logging, errors, contracts, HTTP endpoints",
+  "license": "MIT",
+  "private": true,
+  "type": "commonjs",
+  "exports": {
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "default": "./dist/contracts/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "default": "./dist/errors/index.js"
+    },
+    "./operation": {
+      "types": "./dist/operation/index.d.ts",
+      "default": "./dist/operation/index.js"
+    },
+    "./cls": {
+      "types": "./dist/cls/index.d.ts",
+      "default": "./dist/cls/index.js"
+    },
+    "./logger": {
+      "types": "./dist/logger/index.d.ts",
+      "default": "./dist/logger/index.js"
+    },
+    "./http": {
+      "types": "./dist/http/index.d.ts",
+      "default": "./dist/http/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/openapi/index.d.ts",
+      "default": "./dist/openapi/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "type-check": "tsc -b --force"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^12.0.1",
+    "@nestjs/core": "^12.0.1",
+    "@nestjs/platform-fastify": "^12.0.1",
+    "@nestjs/swagger": "^12.0.1",
+    "@sklv-labs/core": "^0.1.1",
+    "nestjs-cls": "^6.3.0",
+    "pino": "^10.3.1",
+    "reflect-metadata": "^0.2.2",
+    "zod": "^4.5.4"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/platform-fastify": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nestjs/common": "^12.0.1",
+    "@nestjs/core": "^12.0.1",
+    "@nestjs/platform-fastify": "^12.0.1",
+    "@nestjs/swagger": "^12.0.1",
+    "@sklv-labs/core": "^0.1.1",
+    "@sklv-labs/dev-configs": "^0.2.1",
+    "@types/node": "^26.4.1",
+    "nestjs-cls": "^6.3.0",
+    "pino": "^10.3.1",
+    "reflect-metadata": "^0.2.2",
+    "typescript": "^7.0.2",
+    "zod": "^4.5.4"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

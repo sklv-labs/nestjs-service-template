@@ -9,11 +9,11 @@ import { SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
-import { fastifyCorrelationOptions } from './shared/cls';
-import { registerRequestLogging } from './shared/http';
-import { LoggerService } from './shared/logger';
-import { logger } from './shared/logger/instance';
-import { buildOpenApiDocument } from './shared/openapi';
+import { fastifyCorrelationOptions } from '@sklv-labs/nestjs-core/cls';
+import { registerRequestLogging } from '@sklv-labs/nestjs-core/http';
+import { LoggerService } from '@sklv-labs/nestjs-core/logger';
+import { logger } from './config/logger';
+import { buildOpenApiDocument } from '@sklv-labs/nestjs-core/openapi';
 
 async function bootstrap(): Promise<void> {
   const adapter = new FastifyAdapter({
@@ -25,8 +25,8 @@ async function bootstrap(): Promise<void> {
     // is exported by `fastify`, which is a peer of @nestjs/platform-fastify and deliberately not a
     // direct dependency here — two copies of Fastify broke @fastify/helmet's peer types before.
     disableRequestLogging: true,
-    // Correlation id creation, owned by `shared/cls` — the policy and the context that carries it
-    // belong together, and this is only the point where the transport is handed it.
+    // Correlation id creation, owned by the package's `cls` module — the policy and the context
+    // that carries it belong together; this is only where the transport is handed it.
     ...fastifyCorrelationOptions(),
   });
 

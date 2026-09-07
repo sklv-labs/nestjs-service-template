@@ -1,4 +1,4 @@
-import { httpError } from '../../../shared/http';
+import { httpError } from '@sklv-labs/nestjs-core/http';
 import { UserNotFound, UserRegistrationFailed } from '../../domain';
 
 /**

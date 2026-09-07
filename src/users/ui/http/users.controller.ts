@@ -1,8 +1,8 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-import type { BodyOf, HeadersOf, ParamsOf, QueryOf } from '../../../shared/http';
-import { ReqBody, ReqHeaders, ReqParams, ReqQuery, UseEndpoint } from '../../../shared/http';
+import type { BodyOf, HeadersOf, ParamsOf, QueryOf } from '@sklv-labs/nestjs-core/http';
+import { ReqBody, ReqHeaders, ReqParams, ReqQuery, UseEndpoint } from '@sklv-labs/nestjs-core/http';
 import { CreateUserHandler, GetUserHandler, ListUsersHandler } from '../../operation';
 
 import { createUser, getUser, listUsers } from './endpoints';

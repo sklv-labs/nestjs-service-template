@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import type { Handler } from '../../shared/operation';
+import type { Handler } from '@sklv-labs/nestjs-core/operation';
 import type { UserRow } from '../domain';
 import { UsersService } from '../service/users.service';
 

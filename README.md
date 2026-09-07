@@ -27,16 +27,16 @@ Requires Node >= 24 and pnpm 11 (`corepack enable`).
 One directory per feature, four layers, dependencies pointing inward.
 
 ```
-scripts/               build-time tooling: openapi.json and the Bruno collection
-src/                   app.module.ts, load-env.ts, main.ts — nothing else at this level
-src/shared/            reusable across features, written to be extractable as a package
+packages/nestjs-core/  @sklv-labs/nestjs-core — a real workspace package, not a folder
 ├── contracts/         field builders (id, email, str, int, bool, isoDate), pagination
 ├── errors/            DomainError + businessError declaration
 ├── operation/         Handler interface
-├── cls/               request context
+├── cls/               request context + correlation id policy
 ├── logger/            pino, injected as a property
 ├── openapi/           document builder + contract-to-schema rendering
-└── http/              endpoint descriptor, request builders, error filter
+└── http/              endpoint descriptor, request builders, error filters
+scripts/               build-time tooling: openapi.json and the Bruno collection
+src/                   app.module.ts, load-env.ts, main.ts — nothing else at this level
 src/users/
 ├── domain/            table, branded id, business errors — no framework, no HTTP
 ├── service/           port, in-memory adapter, business rules

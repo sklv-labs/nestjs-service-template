@@ -1,5 +1,5 @@
-import { int, oneOf, str } from '../../../../shared/contracts';
-import { endpoint, failure, req } from '../../../../shared/http';
+import { int, oneOf, str } from '@sklv-labs/nestjs-core/contracts';
+import { endpoint, failure, req } from '@sklv-labs/nestjs-core/http';
 import type { ListUsersInput, ListUsersOutput } from '../../../operation';
 import { toUserResponse, userListResponse } from '../responses';
 

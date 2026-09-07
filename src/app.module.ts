@@ -4,10 +4,10 @@ import { ConfigModule } from '@sklv-labs/nestjs-config';
 import { ConfigService, validationSchema } from './config';
 import { DrizzleModule } from './db';
 import { HealthModule } from './health/health.module';
-import { ClsModule } from './shared/cls';
-import { HttpModule } from './shared/http';
-import { LoggerModule } from './shared/logger';
-import { logger } from './shared/logger/instance';
+import { ClsModule } from '@sklv-labs/nestjs-core/cls';
+import { HttpModule } from '@sklv-labs/nestjs-core/http';
+import { LoggerModule } from '@sklv-labs/nestjs-core/logger';
+import { logger } from './config/logger';
 import { UsersModule } from './users/users.module';
 
 @Module({

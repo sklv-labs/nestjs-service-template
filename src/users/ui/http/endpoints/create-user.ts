@@ -1,5 +1,5 @@
-import { email, str } from '../../../../shared/contracts';
-import { correlationHeaders, endpoint, failure, req } from '../../../../shared/http';
+import { email, str } from '@sklv-labs/nestjs-core/contracts';
+import { correlationHeaders, endpoint, failure, req } from '@sklv-labs/nestjs-core/http';
 import type { CreateUserInput, CreateUserOutput } from '../../../operation';
 import { userRegistrationFailed } from '../error-responses';
 import { toUserResponse, userResponse } from '../responses';

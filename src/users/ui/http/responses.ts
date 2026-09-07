@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { email, id, isoDate, paginated } from '../../../shared/contracts';
+import { email, id, isoDate, paginated } from '@sklv-labs/nestjs-core/contracts';
 import type { UserId, UserRow } from '../../domain';
 
 /**

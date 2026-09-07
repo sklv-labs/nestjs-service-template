@@ -1,0 +1,13 @@
+{
+  "extends": "@sklv-labs/dev-configs/tsconfig/nestjs.json",
+  "compilerOptions": {
+    // `composite` is what lets the service reference this project: `tsc -b` builds it first and the
+    // service then compiles against the emitted `.d.ts`, exactly as a consumer installed from npm
+    // would. Type errors that only appear in declaration emit surface here rather than at publish.
+    "composite": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts"]
+}

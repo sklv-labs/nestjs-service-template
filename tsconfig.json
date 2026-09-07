@@ -8,5 +8,8 @@
     "outDir": "./dist"
   },
   "include": ["src/**/*", "scripts/**/*"],
-  "exclude": ["**/*.test.ts"]
+  "exclude": ["**/*.test.ts"],
+  // Compiles against the package's emitted declarations, not its sources — so the service is a
+  // consumer like any other, and `tsc -b` builds the package first.
+  "references": [{ "path": "./packages/nestjs-core" }]
 }

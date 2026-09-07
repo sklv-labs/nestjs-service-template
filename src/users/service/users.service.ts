@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import type { Logger } from '../../shared/logger';
-import { InjectLogger } from '../../shared/logger';
+import type { Logger } from '@sklv-labs/nestjs-core/logger';
+import { InjectLogger } from '@sklv-labs/nestjs-core/logger';
 import type { UserId, UserRow } from '../domain';
 import { UserNotFound, UserRegistrationFailed } from '../domain';
 

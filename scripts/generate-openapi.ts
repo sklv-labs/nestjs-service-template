@@ -6,7 +6,7 @@ import { FastifyAdapter } from '@nestjs/platform-fastify';
 
 import { AppModule } from '../src/app.module';
 import { ConfigService } from '../src/config';
-import { buildOpenApiDocument } from '../src/shared/openapi';
+import { buildOpenApiDocument } from '@sklv-labs/nestjs-core/openapi';
 
 /**
  * Writes `openapi.json` without starting a server.

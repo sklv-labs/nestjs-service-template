@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { email } from '../../shared/contracts';
-import { businessError } from '../../shared/errors';
+import { email } from '@sklv-labs/nestjs-core/contracts';
+import { businessError } from '@sklv-labs/nestjs-core/errors';
 
 /**
  * Business errors the users domain can raise. No HTTP here — which status each maps to is

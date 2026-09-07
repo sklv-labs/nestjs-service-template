@@ -1,5 +1,5 @@
-import { id } from '../../../../shared/contracts';
-import { endpoint, failure, req } from '../../../../shared/http';
+import { id } from '@sklv-labs/nestjs-core/contracts';
+import { endpoint, failure, req } from '@sklv-labs/nestjs-core/http';
 import type { UserId } from '../../../domain';
 import type { GetUserInput, GetUserOutput } from '../../../operation';
 import { userNotFound } from '../error-responses';

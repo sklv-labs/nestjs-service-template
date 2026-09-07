@@ -13,7 +13,7 @@ import { appContext } from './config/context';
 import { fastifyContextOptions, registerRequestLogging } from '@sklv-labs/nestjs-core/http';
 import { LoggerService } from '@sklv-labs/nestjs-core/logger';
 import { logger } from './config/logger';
-import { buildOpenApiDocument } from '@sklv-labs/nestjs-core/openapi';
+import { buildOpenApiDocument, contextHeaderParameters } from '@sklv-labs/nestjs-core/openapi';
 
 async function bootstrap(): Promise<void> {
   const adapter = new FastifyAdapter({
@@ -41,6 +41,7 @@ async function bootstrap(): Promise<void> {
   registerRequestLogging(app, loggerService, {
     body: config.logging.requestBody,
     responseBody: config.logging.responseBody,
+    carrierHeaders: appContext.carrierNames,
   });
 
   const { default: helmet } = await import('@fastify/helmet');
@@ -53,7 +54,11 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(new StandardSchemaValidationPipe({ validateCustomDecorators: true }));
 
   if (config.docs.enabled) {
-    SwaggerModule.setup(config.docs.path, app, buildOpenApiDocument(app, config.docs));
+    SwaggerModule.setup(
+      config.docs.path,
+      app,
+      buildOpenApiDocument(app, config.docs, { parameters: contextHeaderParameters(appContext) }),
+    );
   }
 
   const { port, host } = config.server;

@@ -9,14 +9,14 @@ import type { ContextField } from './field';
  * every schema. This is the standard variance escape hatch for a heterogeneous record.
  */
 // oxlint-disable-next-line typescript/no-explicit-any -- variance: see above
-export type AnyContextField = ContextField<any, boolean>;
+export type AnyContextField = ContextField<any>;
 
 export type ContextFields = Record<string, AnyContextField>;
 
 /** How much a transport is trusted. An internet-facing server is `edge`; a peer service is `internal`. */
 export type Trust = 'edge' | 'internal';
 
-type ValueOf<F> = F extends ContextField<infer T, boolean> ? T : never;
+type ValueOf<F> = F extends ContextField<infer T> ? T : never;
 
 type RequiredKeys<F extends ContextFields> = {
   [K in keyof F]: F[K]['required'] extends true ? K : never;
@@ -150,9 +150,10 @@ export const defineContext = <const F extends ContextFields>(fields: F): Context
         return undefined;
       }
 
-      const resolved = value(idKey, fields[idKey] as AnyContextField, reader, options);
+      const field = fields[idKey] as AnyContextField;
+      const resolved = value(idKey, field, reader, options);
 
-      return resolved === undefined ? undefined : String(resolved);
+      return resolved === undefined ? undefined : field.serialize(resolved);
     },
 
     bindings: (store) =>
@@ -167,12 +168,14 @@ export const defineContext = <const F extends ContextFields>(fields: F): Context
       Object.fromEntries(
         entries
           .filter(([, field]) => field.propagate && field.carrier !== undefined)
-          .map(
-            ([key, field]) =>
-              [field.carrier as string, (store as Record<string, unknown>)[key]] as const,
-          )
-          .filter(([, resolved]) => resolved !== undefined)
-          .map(([name, resolved]) => [name, String(resolved)] as const),
+          .map(([key, field]) => {
+            const resolved = (store as Record<string, unknown>)[key];
+
+            return resolved === undefined
+              ? undefined
+              : ([field.carrier as string, field.serialize(resolved)] as const);
+          })
+          .filter((entry): entry is readonly [string, string] => entry !== undefined),
       ),
 
     inject: (store, writer) => {
@@ -184,7 +187,7 @@ export const defineContext = <const F extends ContextFields>(fields: F): Context
         const resolved = (store as Record<string, unknown>)[key];
 
         if (resolved !== undefined) {
-          writer.set(field.carrier, field.serialize(resolved as never));
+          writer.set(field.carrier, field.serialize(resolved));
         }
       }
     },

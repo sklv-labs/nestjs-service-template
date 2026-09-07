@@ -6,7 +6,8 @@ import { FastifyAdapter } from '@nestjs/platform-fastify';
 
 import { AppModule } from '../src/app.module';
 import { ConfigService } from '../src/config';
-import { buildOpenApiDocument } from '@sklv-labs/nestjs-core/openapi';
+import { appContext } from '../src/config/context';
+import { buildOpenApiDocument, contextHeaderParameters } from '@sklv-labs/nestjs-core/openapi';
 
 /**
  * Writes `openapi.json` without starting a server.
@@ -28,7 +29,9 @@ async function main(): Promise<void> {
   // Lifecycle hooks run, so the endpoint scan reports unmapped error codes here too.
   await app.init();
 
-  const document = buildOpenApiDocument(app, config.docs);
+  const document = buildOpenApiDocument(app, config.docs, {
+    parameters: contextHeaderParameters(appContext),
+  });
   const target = resolve(process.cwd(), 'openapi.json');
 
   writeFileSync(target, `${JSON.stringify(document, null, 2)}\n`);

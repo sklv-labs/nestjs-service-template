@@ -25,6 +25,11 @@ export type RequestLoggingOptions = {
    * page would otherwise put megabytes per request into log storage.
    */
   maxBodyBytes?: number;
+  /**
+   * Wire names the context carries. Merged into the response-header allowlist, so an echoed
+   * context header is logged without this module knowing any field's name.
+   */
+  carrierHeaders?: readonly string[];
   /** Paths not worth logging — health probes and docs are pure noise. */
   ignore?: (url: string) => boolean;
   level?: 'info' | 'debug';
@@ -35,6 +40,7 @@ const DEFAULTS = {
   headers: true,
   query: true,
   responseHeaders: true as boolean | 'all' | string[],
+  carrierHeaders: [] as readonly string[],
   responseBody: false,
   maxBodyBytes: 4096,
   // Substring, not prefix: a global prefix makes the health route `/api/v1/health`, and a prefix
@@ -43,7 +49,7 @@ const DEFAULTS = {
   level: 'info' as const,
 };
 
-/** Response headers that actually vary or aid diagnosis. */
+/** Response headers that actually vary or aid diagnosis. Context headers are added by the caller. */
 const HEADER_ALLOWLIST = [
   'content-type',
   'content-length',
@@ -52,7 +58,6 @@ const HEADER_ALLOWLIST = [
   'etag',
   'retry-after',
   'set-cookie',
-  'x-request-id',
 ];
 
 const PAYLOAD = Symbol('response.payload');
@@ -60,6 +65,7 @@ const PAYLOAD = Symbol('response.payload');
 const pickHeaders = (
   headers: Record<string, unknown> | undefined,
   select: boolean | 'all' | string[],
+  extra: readonly string[] = [],
 ): Record<string, unknown> | undefined => {
   if (!headers || select === false) {
     return undefined;
@@ -69,7 +75,7 @@ const pickHeaders = (
     return headers;
   }
 
-  const keys = Array.isArray(select) ? select : HEADER_ALLOWLIST;
+  const keys = [...(Array.isArray(select) ? select : HEADER_ALLOWLIST), ...extra];
 
   return Object.fromEntries(
     keys.filter((key) => headers[key] !== undefined).map((key) => [key, headers[key]]),
@@ -167,7 +173,7 @@ export const registerRequestLogging = (
     }
 
     const allHeaders = reply.getHeaders?.();
-    const headers = pickHeaders(allHeaders, opts.responseHeaders);
+    const headers = pickHeaders(allHeaders, opts.responseHeaders, opts.carrierHeaders);
     const bytes = Number(allHeaders?.['content-length'] ?? 0) || undefined;
 
     // 5xx is our fault and belongs in the error log; everything else is the access log.

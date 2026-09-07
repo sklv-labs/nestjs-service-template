@@ -68,7 +68,10 @@ export class Context<F extends ContextFields = ContextFields> {
       throw new Error(`Context field "${key}" is already set and may only be written once`);
     }
 
-    this.cls.set(key as never, value as never);
+    // `nestjs-cls` types its keys as dot-paths of the store, which a generic key cannot satisfy.
+    // oxlint's type-aware pass disagrees with tsc here; tsc is the one that has to compile.
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- required by tsc
+    this.cls.set(key as never, value);
 
     // The snapshot is what the logger reads, so a late write has to be reflected in it.
     if (field !== undefined && field.log !== false) {
@@ -82,7 +85,7 @@ export class Context<F extends ContextFields = ContextFields> {
    */
   bindings(): Record<string, unknown> | undefined {
     return this.active
-      ? (this.cls?.get(CONTEXT_BINDINGS as never) as Record<string, unknown> | undefined)
+      ? (this.cls?.get(CONTEXT_BINDINGS) as Record<string, unknown> | undefined)
       : undefined;
   }
 
@@ -106,7 +109,8 @@ export class Context<F extends ContextFields = ContextFields> {
     const store = this.cls?.get() as StoreOf<F> | undefined;
 
     if (store !== undefined && this.registry !== undefined) {
-      this.cls?.set(CONTEXT_BINDINGS as never, this.registry.bindings(store) as never);
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- required by tsc
+      this.cls?.set(CONTEXT_BINDINGS, this.registry.bindings(store) as never);
     }
   }
 }

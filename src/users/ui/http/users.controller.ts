@@ -1,8 +1,8 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-import type { BodyOf, HeadersOf, ParamsOf, QueryOf } from '@sklv-labs/nestjs-core/http';
-import { ReqBody, ReqHeaders, ReqParams, ReqQuery, UseEndpoint } from '@sklv-labs/nestjs-core/http';
+import type { BodyOf, ParamsOf, QueryOf } from '@sklv-labs/nestjs-core/http';
+import { ReqBody, ReqParams, ReqQuery, UseEndpoint } from '@sklv-labs/nestjs-core/http';
 import { CreateUserHandler, GetUserHandler, ListUsersHandler } from '../../operation';
 
 import { createUser, getUser, listUsers } from './endpoints';
@@ -25,11 +25,8 @@ export class UsersController {
 
   @Post()
   @UseEndpoint(createUser)
-  async create(
-    @ReqBody(createUser) body: BodyOf<typeof createUser>,
-    @ReqHeaders(createUser) headers: HeadersOf<typeof createUser>,
-  ) {
-    const output = await this.createUserHandler.execute(createUser.toInput({ body, headers }));
+  async create(@ReqBody(createUser) body: BodyOf<typeof createUser>) {
+    const output = await this.createUserHandler.execute(createUser.toInput({ body }));
 
     return createUser.toResponse(output);
   }

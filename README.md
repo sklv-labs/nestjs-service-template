@@ -31,7 +31,7 @@ packages/nestjs-core/  @sklv-labs/nestjs-core — a real workspace package, not 
 ├── contracts/         field builders (id, email, str, int, bool, isoDate), pagination
 ├── errors/            DomainError + businessError declaration
 ├── operation/         Handler interface
-├── cls/               request context + correlation id policy
+├── context/           field declaration, carriers, request context
 ├── logger/            pino, injected as a property
 ├── openapi/           document builder + contract-to-schema rendering
 └── http/              endpoint descriptor, request builders, error filters

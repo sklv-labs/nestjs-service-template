@@ -77,11 +77,11 @@ export class ContextModule {
               });
 
               for (const [key, value] of Object.entries(store)) {
-                cls.set(key as never, value as never);
+                cls.set(key, value);
               }
 
               // Computed once here rather than per log line.
-              cls.set(CONTEXT_BINDINGS as never, registry.bindings(store) as never);
+              cls.set(CONTEXT_BINDINGS, registry.bindings(store));
 
               const reply = res as Reply;
               const outbound = registry.headers(store);

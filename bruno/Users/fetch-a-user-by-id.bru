@@ -13,3 +13,8 @@ get {
 params:path {
   id: {{userId}}
 }
+
+headers {
+  @description('Correlation id (UUID). Generated when absent or not a UUID.')
+  ~x-request-id: 
+}

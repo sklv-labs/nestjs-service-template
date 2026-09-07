@@ -2,6 +2,8 @@ import type { INestApplication } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+import type { GlobalParameter } from './context-headers';
+
 /** Identity of the documented API. Plain data, so this file stays independent of app config. */
 export type OpenApiMetadata = {
   title: string;
@@ -20,13 +22,20 @@ export type OpenApiMetadata = {
 export const buildOpenApiDocument = (
   app: INestApplication,
   metadata: OpenApiMetadata,
+  options: {
+    /** Parameters every operation accepts — context headers, typically. */
+    parameters?: GlobalParameter[];
+  } = {},
 ): OpenAPIObject => {
   const builder = new DocumentBuilder()
     .setTitle(metadata.title)
     .setDescription(metadata.description)
     .setVersion(metadata.version)
-    .addBearerAuth()
-    .build();
+    .addBearerAuth();
 
-  return SwaggerModule.createDocument(app, builder);
+  if (options.parameters !== undefined && options.parameters.length > 0) {
+    builder.addGlobalParameters(...options.parameters);
+  }
+
+  return SwaggerModule.createDocument(app, builder.build());
 };

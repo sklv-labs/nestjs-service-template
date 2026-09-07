@@ -9,8 +9,6 @@ import { UsersService } from '../service/users.service';
 export type CreateUserInput = {
   email: string;
   password: string;
-  /** Carried through for logs and events. Every transport can supply one. */
-  correlationId?: string;
 };
 
 export type CreateUserOutput = {
@@ -31,7 +29,10 @@ export class CreateUserHandler implements Handler<CreateUserInput, CreateUserOut
   constructor(private readonly users: UsersService) {}
 
   async execute(input: CreateUserInput): Promise<CreateUserOutput> {
-    this.logger.log(`Registering ${input.email} (correlation ${input.correlationId ?? 'none'})`);
+    // No correlation id is threaded through the input: every line this logger writes already
+    // carries the context's fields, and interpolating one into the message duplicates it as text
+    // nothing can query.
+    this.logger.log({ email: input.email }, 'Registering user');
 
     // Hashing is a placeholder — see the open questions in the README.
     const user = await this.users.create({ email: input.email, passwordHash: input.password });

@@ -36,43 +36,80 @@ Consequences that are easy to get wrong:
 Fastify only. Nothing in the package imports Fastify or Express types — middleware types against
 Node's `IncomingMessage`, filters reply through `HttpAdapterHost`.
 
-**`cls`** wraps `nestjs-cls`. The wrapper exists to add what the library does not do: an
-inbound `x-request-id` becomes the context id, that id is echoed on the response, ids are on by
-default because the logger and the error filters read them, and `RequestContext` makes the context
-readable without repeating its guards. **The store stays empty** — anything an app wants in it goes
-through the `setup` option and its shape is the app's own `ClsStore`. Never add a field to the store
-from inside the package.
+**`context` declares fields once; everything else is derived.** A service names its fields in
+`src/config/context.ts` and that declaration is the only source for the store type, inbound
+extraction on every transport, outbound propagation, the log bindings and the documented request
+headers. Adding a field is one edit. Never hardcode a wire name, a validation rule or a log key
+anywhere else — the correlation id used to have its name in four files and its validation in two,
+one of which was unreachable.
 
-**The correlation id policy lives in `cls/correlation-id.ts`, never at a call site.** Which
-header carries it, which inbound values are trusted, and how one is minted are one unit, because
-they are one decision. Accepting an inbound id is a security boundary: the header is
-caller-controlled and its value is stamped on every line for that request, so only a UUID is
-adopted and anything else is replaced. That check existed twice before — validated at the Fastify
-adapter, unvalidated in this module's `idGenerator` — and only one copy was reachable.
+```ts
+export const appContext = defineContext({
+  requestId: uuidField({
+    id: true,
+    carrier: 'x-request-id',
+    trust: 'edge',
+    generate: randomUUID,
+    echo: true,
+    log: 'reqId',
+    writable: 'setup',
+  }),
+});
+```
+
+**`trust` is the field that prevents a data leak, and it defaults to `internal`.** `edge` means any
+caller may send it, which is right for a correlation id — forging one costs an attacker nothing.
+Anything that decides what data a request may see (a tenant, an actor) must be `internal` (only a
+peer service) or `never` (code only). A tenant id honoured from an internet-facing header is a
+cross-tenant read, and the transport declares its own trust level: `ContextModule.forRoot` and
+`fastifyContextOptions` both default to `edge`, the pessimistic choice.
+
+**A field says what happens to an unacceptable value, and that is not a 400.** For a correlation id
+it is "replace it with a fresh one". This is why context headers are documented as document-level
+parameters (`contextHeaderParameters` → `addGlobalParameters`) rather than declared in each
+endpoint's contract: an endpoint contract is _validated_, so declaring them there would answer 400
+to a malformed id and contradict the declaration. It would also restate a service-wide fact per
+route, which two of three endpoints had already forgotten to do.
+
+**One transport carrier, not one extraction per transport.** Everything that can carry context —
+HTTP headers, AMQP `properties.headers`, a BullMQ job envelope, a WebSocket message — reduces to
+`CarrierReader`/`CarrierWriter`. `registry.extract` is written once against those, so a new
+transport is a carrier plus a mount point, never another copy of parse-validate-generate.
+`nestjs-cls` supplies the four mount points (middleware for HTTP, guard and interceptor for any
+`ExecutionContext`, `@UseCls()` for a queue processor).
 
 **The id is created at the transport edge and adopted by the context, not the other way round.**
 Fastify assigns `req.id` from `genReqId` before any Nest middleware runs, and it is what Fastify's
-own machinery logs, so the id cannot originate inside CLS. `main.ts` therefore spreads
-`fastifyCorrelationOptions()` into the adapter — that is wiring, and it is all that belongs there.
-`idGenerator` prefers `req.id` and falls back to the same policy, so a non-HTTP transport still
-gets a valid id from one implementation.
+own machinery logs, so the id cannot originate inside the context. `main.ts` spreads
+`fastifyContextOptions(appContext)` into the adapter — wiring, and all that belongs there.
+`idGenerator` prefers `req.id` and otherwise applies the same declaration.
 
-Read the context through `RequestContext`, not `ClsService`:
+Read the context through `Context`, not `ClsService`:
 
 ```ts
-@InjectRequestContext() private readonly context: RequestContext;
+@InjectContext() private readonly context: Context;
 ```
 
-`getId()` throws outside a context — which a startup task, a cron tick or a test driving a service
-directly legitimately is — and the context is optional besides. Both guards are written once there;
-every accessor returns `undefined` rather than throwing. Read app fields off `context.store`, whose
-shape is the app's `ClsStore`, rather than by key.
+`getId()` throws outside a context — which a startup task, a scheduled job or a test driving a
+service directly legitimately is — and the context is optional besides. Both guards are written
+once there; every accessor returns `undefined` rather than throwing. Read app fields off
+`context.store`, typed from the declaration. `set()` honours the field's `writable`: a rewritten
+tenant id throws rather than being tolerated.
+
+**Never thread a context field through an operation's input.** The handler's log lines already
+carry it. `CreateUserInput` used to take a `correlationId` purely to interpolate it into a message,
+which duplicated a structured field as unqueryable text.
 
 **Both filters put `requestId` in the response body.** Every error contract documents that field;
 it went unpopulated for a while, which made the contract describe something no response ever
 contained.
 
-**`logger`** is pino. The design rule is what happens _per line_: one property merge, nothing
+**`logger`** is pino, and it does not know what a request id is. It merges an opaque bindings
+object from a `LogContext` the application points it at
+(`LoggerModule.forRoot({ instance, context: Context })`), so neither area imports the other and no
+field name lives here. Bindings are computed once when the context is created, not per line.
+
+The design rule is what happens _per line_: one property merge, nothing
 else. Static fields (`service`, `env`, `version`) live in pino's bindings, bound once. A class
 context is a **child logger created once** by `logger.forContext(name)`. Never reintroduce
 stack-trace inspection to guess the calling class, a context object rebuilt per call, or per-key
@@ -218,7 +255,7 @@ endpoint's definition across files. Name them `bodySchema` / `paramsSchema` / `q
 rather than endpoints: a dozen routes still share one user shape. `userResponse` is used by two
 endpoints and is what `$ref` points at, so inlining it would fork the component.
 
-Headers that every endpoint accepts live in the package's `http` (`correlationHeaders`), not redeclared per
+Headers that every endpoint accepts are document-level parameters from the context declaration, not redeclared per
 feature — they are transport plumbing, identical everywhere.
 
 `success` is its own field, not an entry in a response array. It is the contract of the handler's

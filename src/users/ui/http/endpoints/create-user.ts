@@ -1,5 +1,5 @@
 import { email, str } from '@sklv-labs/nestjs-core/contracts';
-import { correlationHeaders, endpoint, failure, req } from '@sklv-labs/nestjs-core/http';
+import { endpoint, failure, req } from '@sklv-labs/nestjs-core/http';
 import type { CreateUserInput, CreateUserOutput } from '../../../operation';
 import { userRegistrationFailed } from '../error-responses';
 import { toUserResponse, userResponse } from '../responses';
@@ -19,12 +19,11 @@ export const createUser = endpoint({
   summary: 'Register a user',
   description: 'Validates the body, then applies registration rules.',
 
-  request: { headers: correlationHeaders, body: bodySchema },
+  request: { body: bodySchema },
 
-  toInput: ({ body, headers }): CreateUserInput => ({
+  toInput: ({ body }): CreateUserInput => ({
     email: body.email,
     password: body.password,
-    correlationId: headers['x-request-id'],
   }),
   toResponse: (out: CreateUserOutput) => toUserResponse(out.user),
 

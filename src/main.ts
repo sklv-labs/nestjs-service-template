@@ -1,8 +1,6 @@
 // oxlint-disable-next-line import/no-unassigned-import -- side effect is the point; must stay first
 import './load-env';
 
-import { randomUUID } from 'node:crypto';
-
 import { StandardSchemaValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -11,26 +9,11 @@ import { SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
+import { fastifyCorrelationOptions } from './shared/cls';
 import { registerRequestLogging } from './shared/http';
 import { LoggerService } from './shared/logger';
 import { logger } from './shared/logger/instance';
 import { buildOpenApiDocument } from './shared/openapi';
-
-const REQUEST_ID_HEADER = 'x-request-id';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-/**
- * Correlation ids are honoured from inbound requests so a trace spans services — but only when the
- * value is a UUID. Anything else is generated fresh: the header is caller-controlled, and an
- * arbitrary string ends up in every log line for the request, which is a way to inject junk (or
- * newlines, or kilobytes) into log storage.
- */
-const correlationId = (value: string | string[] | undefined): string => {
-  const candidate = Array.isArray(value) ? value[0] : value;
-
-  return candidate && UUID.test(candidate) ? candidate : randomUUID();
-};
 
 async function bootstrap(): Promise<void> {
   const adapter = new FastifyAdapter({
@@ -42,12 +25,9 @@ async function bootstrap(): Promise<void> {
     // is exported by `fastify`, which is a peer of @nestjs/platform-fastify and deliberately not a
     // direct dependency here — two copies of Fastify broke @fastify/helmet's peer types before.
     disableRequestLogging: true,
-    // Disabled so genReqId always runs — Fastify's own header extraction would accept any inbound
-    // string, and correlationId validates it first. The result becomes `req.id`, which the CLS
-    // wrapper adopts, so the access line and everything the handler logs share one id.
-    requestIdHeader: false,
-    genReqId: (req: { headers: Record<string, string | string[] | undefined> }) =>
-      correlationId(req.headers[REQUEST_ID_HEADER]),
+    // Correlation id creation, owned by `shared/cls` — the policy and the context that carries it
+    // belong together, and this is only the point where the transport is handed it.
+    ...fastifyCorrelationOptions(),
   });
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {

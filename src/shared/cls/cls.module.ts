@@ -1,20 +1,11 @@
-import { randomUUID } from 'node:crypto';
-
 import type { DynamicModule } from '@nestjs/common';
 import { Module } from '@nestjs/common';
+import type { ClsStore } from 'nestjs-cls';
 import { ClsModule as NestClsModule } from 'nestjs-cls';
 
 import type { ClsModuleOptions } from './cls.options';
-import { DEFAULT_REQUEST_ID_HEADER } from './cls.options';
-
-type HeaderBag = Record<string, string | string[] | undefined>;
-
-const readHeader = (req: unknown, header: string): string | undefined => {
-  const bag = (req as { headers?: HeaderBag } | undefined)?.headers;
-  const value = bag?.[header];
-
-  return Array.isArray(value) ? value[0] : value;
-};
+import { correlation as defaultCorrelation } from './correlation-id';
+import { RequestContext } from './request-context';
 
 /**
  * Wraps `nestjs-cls` with the parts every service ends up writing anyway.
@@ -25,29 +16,35 @@ const readHeader = (req: unknown, header: string): string | undefined => {
  * - An inbound correlation header becomes the context id, so a request crossing several services
  *   keeps one id. `nestjs-cls` generates a fresh id per process by default.
  * - That id is echoed on the response, so a caller can correlate from the response alone.
- * - Ids are on by default, because `cls.getId()` is what the logger reads.
+ * - Ids are on by default, because the id is what the logger and the error filters read.
+ * - {@link RequestContext} for reading the context without repeating its two guards.
  *
  * The store itself stays empty. Anything an app wants in it goes through `setup`, and its shape is
- * the app's own `ClsStore` interface — this package never dictates fields.
+ * the app's own `ClsStore` — this package never dictates fields.
+ *
+ * Global, because a request context that has to be imported per module is not a context.
  */
 @Module({})
 export class ClsModule {
-  static forRoot(options: ClsModuleOptions = {}): DynamicModule {
-    const header = options.header ?? DEFAULT_REQUEST_ID_HEADER;
-    const generate = options.generateId ?? randomUUID;
+  static forRoot<TStore extends ClsStore = ClsStore>(
+    options: ClsModuleOptions<TStore> = {},
+  ): DynamicModule {
+    const correlation = options.correlation ?? defaultCorrelation;
 
     return {
       module: ClsModule,
+      global: true,
       imports: [
         NestClsModule.forRoot({
           global: true,
           middleware: {
             mount: options.mount ?? true,
             generateId: true,
-            // Fastify has already assigned `req.id` from `genReqId`, so prefer it: that keeps the
-            // framework's access log and the application's logs on the same id.
+            // At the HTTP edge Fastify has already applied the same policy in `genReqId`, so
+            // `req.id` is preferred: that keeps the framework's own lines and the application's on
+            // one id. Any other transport falls back to the policy itself.
             idGenerator: (req: unknown) =>
-              (req as { id?: string }).id ?? readHeader(req, header) ?? generate(),
+              (req as { id?: string }).id ?? correlation.fromRequest(req),
             setup: async (cls, req: unknown, res: unknown) => {
               // Fastify's reply has `header`; a raw ServerResponse has `setHeader`. Nest hands
               // middleware the raw object, so both paths have to be covered.
@@ -56,14 +53,15 @@ export class ClsModule {
                 setHeader?: (k: string, v: string) => void;
               };
 
-              (reply.header ?? reply.setHeader)?.call(reply, header, cls.getId());
+              (reply.header ?? reply.setHeader)?.call(reply, correlation.header, cls.getId());
 
-              await options.setup?.(cls, req, res);
+              await options.setup?.(cls as never, req, res);
             },
           },
         }),
       ],
-      exports: [NestClsModule],
+      providers: [RequestContext],
+      exports: [NestClsModule, RequestContext],
     };
   }
 }

@@ -15,11 +15,41 @@ What follows is a description of how the code currently works, not a rulebook.
 Fastify only. Nothing in `shared/` imports Fastify or Express types — middleware types against
 Node's `IncomingMessage`, filters reply through `HttpAdapterHost`.
 
-**`shared/cls`** wraps `nestjs-cls`. The wrapper exists to add three things the library does not do:
-an inbound `x-request-id` becomes the context id, that id is echoed on the response, and ids are on
-by default because `cls.getId()` is what the logger reads. **The store stays empty** — anything an
-app wants in it goes through the `setup` option and its shape is the app's own `ClsStore`. Never add
-a field to the store from inside the package.
+**`shared/cls`** wraps `nestjs-cls`. The wrapper exists to add what the library does not do: an
+inbound `x-request-id` becomes the context id, that id is echoed on the response, ids are on by
+default because the logger and the error filters read them, and `RequestContext` makes the context
+readable without repeating its guards. **The store stays empty** — anything an app wants in it goes
+through the `setup` option and its shape is the app's own `ClsStore`. Never add a field to the store
+from inside the package.
+
+**The correlation id policy lives in `shared/cls/correlation-id.ts`, never at a call site.** Which
+header carries it, which inbound values are trusted, and how one is minted are one unit, because
+they are one decision. Accepting an inbound id is a security boundary: the header is
+caller-controlled and its value is stamped on every line for that request, so only a UUID is
+adopted and anything else is replaced. That check existed twice before — validated at the Fastify
+adapter, unvalidated in this module's `idGenerator` — and only one copy was reachable.
+
+**The id is created at the transport edge and adopted by the context, not the other way round.**
+Fastify assigns `req.id` from `genReqId` before any Nest middleware runs, and it is what Fastify's
+own machinery logs, so the id cannot originate inside CLS. `main.ts` therefore spreads
+`fastifyCorrelationOptions()` into the adapter — that is wiring, and it is all that belongs there.
+`idGenerator` prefers `req.id` and falls back to the same policy, so a non-HTTP transport still
+gets a valid id from one implementation.
+
+Read the context through `RequestContext`, not `ClsService`:
+
+```ts
+@InjectRequestContext() private readonly context: RequestContext;
+```
+
+`getId()` throws outside a context — which a startup task, a cron tick or a test driving a service
+directly legitimately is — and the context is optional besides. Both guards are written once there;
+every accessor returns `undefined` rather than throwing. Read app fields off `context.store`, whose
+shape is the app's `ClsStore`, rather than by key.
+
+**Both filters put `requestId` in the response body.** Every error contract documents that field;
+it went unpopulated for a while, which made the contract describe something no response ever
+contained.
 
 **`shared/logger`** is pino. The design rule is what happens _per line_: one property merge, nothing
 else. Static fields (`service`, `env`, `version`) live in pino's bindings, bound once. A class

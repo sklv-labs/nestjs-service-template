@@ -2,6 +2,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpStatus } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
+import { InjectRequestContext, RequestContext } from '../../cls';
 import { DomainError } from '../../errors';
 import type { Logger } from '../../logger';
 import { InjectLogger } from '../../logger';
@@ -19,6 +20,7 @@ import { contractForError } from '../error-status';
 @Catch(DomainError)
 export class DomainExceptionFilter implements ExceptionFilter {
   @InjectLogger() private readonly logger: Logger;
+  @InjectRequestContext() private readonly context: RequestContext;
 
   constructor(private readonly adapterHost: HttpAdapterHost) {}
 
@@ -49,6 +51,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
       errorCode: exception.code,
       reason: exception.reason,
       details: exception.details,
+      // Every error contract documents this field; before this it documented one nothing ever sent.
+      requestId: this.context.id,
     };
 
     // Exception filters run outside the interceptor chain, so `StandardSchemaSerializerInterceptor`

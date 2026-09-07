@@ -4,3 +4,7 @@ coverage/
 drizzle/
 pnpm-lock.yaml
 *.tsbuildinfo
+
+# Generated from the contracts — must stay byte-identical to what the generator writes,
+# or the CI drift check fails on formatting alone.
+openapi.json

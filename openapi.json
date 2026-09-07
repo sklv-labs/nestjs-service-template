@@ -15,7 +15,10 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": ["ok", "degraded"],
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
                       "example": "ok"
                     },
                     "info": {
@@ -28,11 +31,17 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": ["status"],
+                        "required": [
+                          "status"
+                        ],
                         "properties": {
                           "status": {
                             "type": "string",
-                            "enum": ["up", "degraded", "down"]
+                            "enum": [
+                              "up",
+                              "degraded",
+                              "down"
+                            ]
                           },
                           "responseTime": {
                             "type": "number",
@@ -48,11 +57,17 @@
                       "example": {},
                       "additionalProperties": {
                         "type": "object",
-                        "required": ["status"],
+                        "required": [
+                          "status"
+                        ],
                         "properties": {
                           "status": {
                             "type": "string",
-                            "enum": ["up", "degraded", "down"]
+                            "enum": [
+                              "up",
+                              "degraded",
+                              "down"
+                            ]
                           },
                           "responseTime": {
                             "type": "number",
@@ -73,11 +88,17 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": ["status"],
+                        "required": [
+                          "status"
+                        ],
                         "properties": {
                           "status": {
                             "type": "string",
-                            "enum": ["up", "degraded", "down"]
+                            "enum": [
+                              "up",
+                              "degraded",
+                              "down"
+                            ]
                           },
                           "responseTime": {
                             "type": "number",
@@ -101,7 +122,10 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": ["error", "shutting_down"],
+                      "enum": [
+                        "error",
+                        "shutting_down"
+                      ],
                       "example": "error"
                     },
                     "info": {
@@ -114,11 +138,17 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": ["status"],
+                        "required": [
+                          "status"
+                        ],
                         "properties": {
                           "status": {
                             "type": "string",
-                            "enum": ["up", "degraded", "down"]
+                            "enum": [
+                              "up",
+                              "degraded",
+                              "down"
+                            ]
                           },
                           "responseTime": {
                             "type": "number",
@@ -140,11 +170,17 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": ["status"],
+                        "required": [
+                          "status"
+                        ],
                         "properties": {
                           "status": {
                             "type": "string",
-                            "enum": ["up", "degraded", "down"]
+                            "enum": [
+                              "up",
+                              "degraded",
+                              "down"
+                            ]
                           },
                           "responseTime": {
                             "type": "number",
@@ -170,11 +206,17 @@
                       },
                       "additionalProperties": {
                         "type": "object",
-                        "required": ["status"],
+                        "required": [
+                          "status"
+                        ],
                         "properties": {
                           "status": {
                             "type": "string",
-                            "enum": ["up", "degraded", "down"]
+                            "enum": [
+                              "up",
+                              "degraded",
+                              "down"
+                            ]
                           },
                           "responseTime": {
                             "type": "number",
@@ -190,7 +232,9 @@
             }
           }
         },
-        "tags": ["Health"]
+        "tags": [
+          "Health"
+        ]
       }
     },
     "/api/v1/users": {
@@ -232,7 +276,10 @@
                     "example": "correct-horse-battery-staple"
                   }
                 },
-                "required": ["email", "password"],
+                "required": [
+                  "email",
+                  "password"
+                ],
                 "additionalProperties": false
               }
             }
@@ -297,7 +344,9 @@
           }
         },
         "summary": "Register a user",
-        "tags": ["Users"]
+        "tags": [
+          "Users"
+        ]
       },
       "get": {
         "operationId": "UsersController_list",
@@ -344,7 +393,12 @@
             "schema": {
               "default": "-createdAt",
               "type": "string",
-              "enum": ["createdAt", "-createdAt", "email", "-email"],
+              "enum": [
+                "createdAt",
+                "-createdAt",
+                "email",
+                "-email"
+              ],
               "description": "Sort field, prefixed with - for descending"
             }
           }
@@ -372,7 +426,9 @@
           }
         },
         "summary": "List users",
-        "tags": ["Users"]
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/api/v1/users/{id}": {
@@ -439,14 +495,16 @@
           }
         },
         "summary": "Fetch a user by id",
-        "tags": ["Users"]
+        "tags": [
+          "Users"
+        ]
       }
     }
   },
   "info": {
-    "title": "unknown",
-    "description": "OpenAPI documentation for unknown (development).",
-    "version": "unknown",
+    "title": "nestjs-service-template",
+    "description": "OpenAPI documentation for nestjs-service-template.",
+    "version": "0.0.0",
     "contact": {}
   },
   "tags": [],
@@ -492,7 +550,12 @@
             "example": "2026-09-03T10:00:00.000Z"
           }
         },
-        "required": ["id", "email", "createdAt", "updatedAt"],
+        "required": [
+          "id",
+          "email",
+          "createdAt",
+          "updatedAt"
+        ],
         "additionalProperties": false
       },
       "ApiError": {
@@ -531,7 +594,10 @@
             "type": "string"
           }
         },
-        "required": ["statusCode", "message"],
+        "required": [
+          "statusCode",
+          "message"
+        ],
         "additionalProperties": false
       },
       "USER_REGISTRATION_FAILED": {
@@ -539,7 +605,9 @@
         "properties": {
           "statusCode": {
             "type": "number",
-            "enum": [409]
+            "enum": [
+              409
+            ]
           },
           "message": {
             "anyOf": [
@@ -561,7 +629,9 @@
           },
           "errorCode": {
             "type": "string",
-            "enum": ["USER_REGISTRATION_FAILED"]
+            "enum": [
+              "USER_REGISTRATION_FAILED"
+            ]
           },
           "requestId": {
             "description": "Correlates this response with the server logs",
@@ -569,7 +639,10 @@
           },
           "reason": {
             "type": "string",
-            "enum": ["EMAIL_ALREADY_REGISTERED", "EMAIL_DOMAIN_BLOCKED"],
+            "enum": [
+              "EMAIL_ALREADY_REGISTERED",
+              "EMAIL_DOMAIN_BLOCKED"
+            ],
             "description": "Which of the cases behind this code occurred"
           },
           "details": {
@@ -581,11 +654,19 @@
                 "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
               }
             },
-            "required": ["email"],
+            "required": [
+              "email"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["statusCode", "message", "errorCode", "reason", "details"],
+        "required": [
+          "statusCode",
+          "message",
+          "errorCode",
+          "reason",
+          "details"
+        ],
         "additionalProperties": false
       },
       "UserList": {
@@ -616,11 +697,18 @@
                 "maximum": 9007199254740991
               }
             },
-            "required": ["page", "limit", "total"],
+            "required": [
+              "page",
+              "limit",
+              "total"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["items", "meta"],
+        "required": [
+          "items",
+          "meta"
+        ],
         "additionalProperties": false
       },
       "UserListItem": {
@@ -648,7 +736,11 @@
             "example": "2026-09-03T10:00:00.000Z"
           }
         },
-        "required": ["id", "email", "createdAt"],
+        "required": [
+          "id",
+          "email",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "USER_NOT_FOUND": {
@@ -656,7 +748,9 @@
         "properties": {
           "statusCode": {
             "type": "number",
-            "enum": [404]
+            "enum": [
+              404
+            ]
           },
           "message": {
             "anyOf": [
@@ -678,7 +772,9 @@
           },
           "errorCode": {
             "type": "string",
-            "enum": ["USER_NOT_FOUND"]
+            "enum": [
+              "USER_NOT_FOUND"
+            ]
           },
           "requestId": {
             "description": "Correlates this response with the server logs",
@@ -686,7 +782,9 @@
           },
           "reason": {
             "type": "string",
-            "enum": ["BY_ID"],
+            "enum": [
+              "BY_ID"
+            ],
             "description": "Which of the cases behind this code occurred"
           },
           "details": {
@@ -696,11 +794,19 @@
                 "type": "string"
               }
             },
-            "required": ["id"],
+            "required": [
+              "id"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["statusCode", "message", "errorCode", "reason", "details"],
+        "required": [
+          "statusCode",
+          "message",
+          "errorCode",
+          "reason",
+          "details"
+        ],
         "additionalProperties": false
       }
     }

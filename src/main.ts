@@ -1,5 +1,5 @@
 // oxlint-disable-next-line import/no-unassigned-import -- side effect is the point; must stay first
-import './bootstrap-env';
+import './load-env';
 
 import { randomUUID } from 'node:crypto';
 
@@ -11,10 +11,10 @@ import { SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
-import { logger } from './logger';
-import { buildOpenApiDocument } from './openapi-document';
 import { registerRequestLogging } from './shared/http';
 import { LoggerService } from './shared/logger';
+import { logger } from './shared/logger/instance';
+import { buildOpenApiDocument } from './shared/openapi';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -69,7 +69,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(new StandardSchemaValidationPipe({ validateCustomDecorators: true }));
 
   if (config.docs.enabled) {
-    SwaggerModule.setup(config.docs.path, app, buildOpenApiDocument(app, config));
+    SwaggerModule.setup(config.docs.path, app, buildOpenApiDocument(app, config.docs));
   }
 
   const { port, host } = config.server;

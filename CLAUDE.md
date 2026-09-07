@@ -45,8 +45,10 @@ The context comes from Nest's `INQUIRER` token, so a class never names itself. T
 per request, and transient does not bubble, so consumers stay singletons. `new Logger(Name)` works
 only because `app.useLogger` reroutes Nest's static logger, and it is untestable.
 
-`src/logger.ts` holds the single pino instance as a module-level const, because Fastify needs it
-before Nest exists (`loggerInstance` is an adapter option). `LoggerModule.forRoot({ instance })`
+`shared/logger/instance.ts` holds the single pino instance as a module-level const, because Fastify
+needs it before Nest exists (`loggerInstance` is an adapter option). It is the one file in
+`shared/logger` the barrel does not export: everything else there is library code, that file is the
+application composing it, and it is imported by path for exactly that reason. `LoggerModule.forRoot({ instance })`
 then reuses it, so the framework's access log and application logs share one stream, one format and
 one redaction policy. Do not let `LoggerModule` build a second instance.
 
@@ -119,8 +121,21 @@ unrelated calls. That wiring is derived from endpoint shape; do not hand-maintai
 Requests arrive prefilled with the examples declared on the contract fields, which is the concrete
 reason those examples belong on fields rather than beside schemas.
 
-`src/openapi-document.ts` is shared by the running service and the generator, so the served document
-and the committed one cannot describe different APIs.
+`shared/openapi/document.ts` is shared by the running service and the generator, so the served
+document and the committed one cannot describe different APIs. It takes plain metadata rather than
+`ConfigService`, because **nothing about the current environment may reach the document** — the
+environment name once appeared in its description, which made the artefact differ between a laptop
+and the CI runner. For the same reason the title and version are imported from `package.json` at
+compile time: `npm_package_*` is empty unless a package script started the process, and it silently
+produced a document titled `unknown`.
+
+`openapi.json` is in `.prettierignore`. The generator writes `JSON.stringify(…, 2)`, so formatting
+it reintroduces a diff that CI reports as a stale contract.
+
+The generator gets its environment from `.env.example` via `node --env-file-if-exists`, never from
+`.env`: building the module graph runs config validation, and real environment variables still take
+precedence because Node does not let the file override them. A new required variable therefore
+breaks generation until `.env.example` documents it, which is the point.
 
 ## Operation layer
 
@@ -275,7 +290,7 @@ Constraints that will bite if you forget them:
 - **Do not declare `fastify` as a direct dependency.** `@nestjs/platform-fastify` resolves its own,
   and two copies make `@fastify/helmet`'s peer types disagree with the app's.
 - **Swagger on Fastify needs `@fastify/static`**, or docs fail at boot with a PackageLoader error.
-- **`npm_package_*` are absent under `node dist/main.js`.** Service identity comes from
+- **`npm_package_*` are absent under `node dist/src/main.js`.** Service identity comes from
   `SERVICE_NAME` / `SERVICE_VERSION`, which is what a container sets.
 - **Type examples as `z.input`, not `z.infer`.** Examples are wire JSON, and a branded id's input
   type is a plain string — `z.infer` would demand a cast in every example.
@@ -293,7 +308,7 @@ To run the service while testing, pass the environment inline instead; `dotenv` 
 variables already present in `process.env`, so this composes with an existing `.env`:
 
 ```bash
-LOG_JSON=true node dist/main.js
+LOG_JSON=true node dist/src/main.js
 ```
 
 If a run genuinely needs a full environment and none exists, use a throwaway path and point at it
@@ -303,7 +318,12 @@ explicitly rather than writing `.env`.
 
 These are runtime facts, and they hold whatever the architecture turns into.
 
-**`import './bootstrap-env'` must stay the first import in `main.ts`.** TypeScript compiles imports
+**The entrypoint is `dist/src/main.js`, not `dist/main.js`.** `scripts/` is a sibling of `src/`, so
+`rootDir` is the repo root and the output mirrors it. `rootDir` is set explicitly because the Docker
+build copies only `src`, and an inferred root would collapse that image's layout to `dist/main.js`.
+Root-level `src/` files are limited to `app.module.ts`, `load-env.ts` and `main.ts`.
+
+**`import './load-env'` must stay the first import in `main.ts`.** TypeScript compiles imports
 to `require` calls in source order, so that side-effect import is what guarantees `.env` is loaded
 before `app.module.ts` is evaluated — and `ConfigModule.forRoot` validates `process.env` during
 that evaluation. Reordering it, or converting it to a dynamic import, breaks boot. Its

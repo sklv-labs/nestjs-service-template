@@ -94,7 +94,7 @@ jobs:
 
       - name: Start the service
         run: |
-          node dist/main.js > /tmp/service.log 2>&1 &
+          node dist/src/main.js > /tmp/service.log 2>&1 &
           for _ in $(seq 1 40); do
             curl -sf -o /dev/null http://127.0.0.1:3000/api/docs-json && exit 0
             sleep 0.5

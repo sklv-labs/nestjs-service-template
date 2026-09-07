@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { getAppName, getAppVersion, getEnvironment } from '@sklv-labs/core/environment';
 import { ServiceBaseConfigService } from '@sklv-labs/nestjs-config';
+
+// The documented API's identity, resolved at compile time. `npm_package_*` would be simpler but is
+// absent unless the process was started by a package script, which silently produced a document
+// titled "unknown".
+import { name, version } from '../../package.json';
 
 import type { EnvType } from './env.schema';
 
@@ -17,11 +21,16 @@ export class ConfigService extends ServiceBaseConfigService<EnvType> {
     responseBody: this.env.LOG_RESPONSE_BODY,
   };
 
+  /**
+   * `openapi.json` is committed and diffed in CI, so nothing here may vary with the environment —
+   * the environment used to appear in the description, which made the artefact differ between a
+   * developer's machine and the CI runner.
+   */
   docs = {
     enabled: this.env.DOCS_ENABLED,
     path: this.env.DOCS_PATH,
-    title: getAppName(),
-    version: getAppVersion(),
-    description: `OpenAPI documentation for ${getAppName()} (${getEnvironment() ?? 'unknown'}).`,
+    title: name,
+    version,
+    description: `OpenAPI documentation for ${name}.`,
   };
 }

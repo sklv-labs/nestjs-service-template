@@ -27,10 +27,15 @@ Requires Node >= 24 and pnpm 11 (`corepack enable`).
 One directory per feature, four layers, dependencies pointing inward.
 
 ```
-src/shared/            reusable across features
+scripts/               build-time tooling: openapi.json and the Bruno collection
+src/                   app.module.ts, load-env.ts, main.ts — nothing else at this level
+src/shared/            reusable across features, written to be extractable as a package
 ├── contracts/         field builders (id, email, str, int, bool, isoDate), pagination
 ├── errors/            DomainError + businessError declaration
 ├── operation/         Handler interface
+├── cls/               request context
+├── logger/            pino, injected as a property
+├── openapi/           document builder + contract-to-schema rendering
 └── http/              endpoint descriptor, request builders, error filter
 src/users/
 ├── domain/            table, branded id, business errors — no framework, no HTTP
@@ -194,7 +199,7 @@ docker build -t service .
 docker run --rm -p 3000:3000 --env-file .env service
 ```
 
-The image runs `node dist/main.js` rather than a package script, and installs with `--prod` in a
+The image runs `node dist/src/main.js` rather than a package script, and installs with `--prod` in a
 separate stage so devDependencies stay out of the runtime layer.
 
 ## License

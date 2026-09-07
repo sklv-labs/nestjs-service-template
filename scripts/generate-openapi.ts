@@ -1,15 +1,12 @@
-// oxlint-disable-next-line import/no-unassigned-import -- must load the environment before Nest
-import '../bootstrap-env';
-
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 
-import { AppModule } from '../app.module';
-import { ConfigService } from '../config';
-import { buildOpenApiDocument } from '../openapi-document';
+import { AppModule } from '../src/app.module';
+import { ConfigService } from '../src/config';
+import { buildOpenApiDocument } from '../src/shared/openapi';
 
 /**
  * Writes `openapi.json` without starting a server.
@@ -17,19 +14,21 @@ import { buildOpenApiDocument } from '../openapi-document';
  * Committed, so a contract change shows up in review as a diff someone reads, and CI can fail when
  * the document drifts from the code. It is also what an SDK generator or a Bruno collection is
  * built from.
+ *
+ * The environment comes from `.env.example` via `node --env-file-if-exists`, not from `.env`:
+ * building the module graph runs config validation, and a committed artefact must not depend on
+ * whatever a particular machine happens to have configured. Real environment variables still win,
+ * because Node does not let the file override them.
  */
 async function main(): Promise<void> {
-  // The document only needs the module graph, not a database, but config validation still runs —
-  // so anything required gets a placeholder rather than forcing a real environment to exist.
-  process.env.DATABASE_URL ??= 'postgres://user:pass@localhost:5432/placeholder';
-
   const app = await NestFactory.create(AppModule, new FastifyAdapter(), { logger: false });
   const config = app.get(ConfigService);
 
   app.setGlobalPrefix(config.globalPrefix);
+  // Lifecycle hooks run, so the endpoint scan reports unmapped error codes here too.
   await app.init();
 
-  const document = buildOpenApiDocument(app, config);
+  const document = buildOpenApiDocument(app, config.docs);
   const target = resolve(process.cwd(), 'openapi.json');
 
   writeFileSync(target, `${JSON.stringify(document, null, 2)}\n`);

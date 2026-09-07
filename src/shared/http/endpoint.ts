@@ -11,9 +11,9 @@ import { ApiBody, ApiHeaders, ApiOperation, ApiResponse } from '@nestjs/swagger'
 import { z } from 'zod';
 
 import type { BusinessErrorShape } from '../errors';
+import { openApiSchema } from '../openapi';
 
 import { businessErrorExamples, businessErrorResponse, errorResponse } from './error-contract';
-import { openApiSchema } from './openapi';
 import { RequestHeaders } from './request';
 
 export type Example = { summary: string; value: unknown };

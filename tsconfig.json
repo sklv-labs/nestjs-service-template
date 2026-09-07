@@ -1,9 +1,12 @@
 {
   "extends": "@sklv-labs/dev-configs/tsconfig/nestjs.json",
   "compilerOptions": {
-    "rootDir": "./src",
+    // `.` rather than `./src`, because `scripts/` is compiled too — which is why the entrypoint is
+    // `dist/src/main.js`. Setting it explicitly keeps the layout stable when only `src` is present,
+    // as in the Docker build, where an inferred root would collapse to `dist/main.js`.
+    "rootDir": ".",
     "outDir": "./dist"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "scripts/**/*"],
   "exclude": ["**/*.test.ts"]
 }

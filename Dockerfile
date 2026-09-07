@@ -29,4 +29,4 @@ USER node
 EXPOSE 3000
 # Runs node directly rather than a package script, so npm_package_* are absent — baseEnvSchema
 # defaults them instead of failing validation.
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

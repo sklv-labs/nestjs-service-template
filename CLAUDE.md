@@ -454,6 +454,18 @@ the meantime.
 
 These are runtime facts, and they hold whatever the architecture turns into.
 
+**`build` deletes `dist` first, and that is not paranoia.** `tsc -b` never removes output for a
+source file that no longer exists, and Node resolves `'./endpoint'` to `endpoint.js` _before_
+`endpoint/index.js`. So renaming `endpoint.ts` into an `endpoint/` directory leaves a stale
+`endpoint.js` that silently shadows the new barrel — the build passes, the type-check passes, the
+tests pass (Vitest runs from source), and the app fails at boot with a
+`CircularDependencyException` naming a provider that is merely `undefined`. A cold build is under a
+second; incremental builds are not worth that failure mode.
+
+A corollary for verification: `pnpm build && node dist/...` succeeding is not evidence unless the
+build was clean. When a generated artefact is checked with `git diff`, check the generator's exit
+code too — a crashed generator leaves the old file in place and the diff looks clean.
+
 **The entrypoint is `dist/src/main.js`, not `dist/main.js`.** `scripts/` is a sibling of `src/`, so
 `rootDir` is the repo root and the output mirrors it. `rootDir` is set explicitly because the Docker
 build copies only `src`, and an inferred root would collapse that image's layout to `dist/main.js`.

@@ -15,8 +15,6 @@ import { UsersModule } from './users/users.module';
   imports: [
     ConfigModule.forRoot({ validationSchema, providers: [ConfigService] }),
     ContextModule.forRoot({ registry: appContext }),
-    // `context: Context` is the only thing tying the two together — the logger merges whatever
-    // fields the context declares and names none of them itself.
     LoggerModule.forRoot({ instance: logger, context: Context }),
     HttpModule,
     DrizzleModule,

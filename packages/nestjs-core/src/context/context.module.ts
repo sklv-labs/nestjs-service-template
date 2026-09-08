@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { DynamicModule } from '@nestjs/common';
 import { Module } from '@nestjs/common';
-import type { ClsService } from 'nestjs-cls';
+import type { ClsPlugin, ClsService } from 'nestjs-cls';
 import { ClsModule as NestClsModule } from 'nestjs-cls';
 
 import type { CarrierReader } from './carriers';
@@ -27,6 +27,15 @@ export type ContextModuleOptions<F extends ContextFields> = {
   setup?: (cls: ClsService<StoreOf<F>>, req: unknown, res: unknown) => void | Promise<void>;
   /** Mount the context on every route. Off only for tests that drive services directly. */
   mount?: boolean;
+  /**
+   * `nestjs-cls` plugins, which run on the same async local storage as the context.
+   *
+   * Transaction propagation arrives this way — `drizzleTransactionPlugin()` from the database
+   * area — because a transaction has exactly the lifetime of the unit of work this module
+   * defines, and running it on a second storage would let the two disagree about which request
+   * they are in.
+   */
+  plugins?: ClsPlugin[];
 };
 
 type Reply = {
@@ -58,6 +67,7 @@ export class ContextModule {
       imports: [
         NestClsModule.forRoot({
           global: true,
+          plugins: options.plugins ?? [],
           middleware: {
             mount: options.mount ?? true,
             generateId: true,

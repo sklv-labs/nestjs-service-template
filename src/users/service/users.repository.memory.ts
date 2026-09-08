@@ -6,7 +6,8 @@ import type { NewUserRow, UserId, UserRow } from '../domain';
 import type { ListUsersParams } from './users.repository';
 import { UsersRepository } from './users.repository';
 
-/** The bound adapter, so the feature runs with no database. */
+/** Not bound: `DrizzleUsersRepository` is. Kept as the port's second implementation, for
+ * tests that exercise the service layer without a database. */
 @Injectable()
 export class InMemoryUsersRepository extends UsersRepository {
   private readonly rows = new Map<string, UserRow>();

@@ -1,7 +1,6 @@
 import type { Uuid } from '@sklv-labs/core';
+import { primaryUuid, timestamps } from '@sklv-labs/nestjs-core/database';
 import { pgTable, varchar } from 'drizzle-orm/pg-core';
-
-import { primaryUuid, timestamps } from '../../db/columns';
 
 export type UserId = Uuid<'users'>;
 

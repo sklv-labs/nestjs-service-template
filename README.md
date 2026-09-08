@@ -32,6 +32,7 @@ packages/nestjs-core/  @sklv-labs/nestjs-core — a real workspace package, not 
 ├── errors/            DomainError + businessError declaration
 ├── operation/         Handler interface
 ├── context/           field declaration, carriers, request context
+├── database/          drizzle v1 + pool, transactions, column helpers
 ├── logger/            pino, injected as a property
 ├── openapi/           document builder + contract-to-schema rendering
 └── http/              endpoint descriptor, request builders, error filters
@@ -199,8 +200,6 @@ the wire contract in the meantime.
 
 ## What is missing, and why
 
-- **No `@Transactional()`.** Use `db.transaction(tx => ...)` and pass the handle through. It lived
-  in a retired `@sklv-labs/ts-nestjs-database`, and is a seam for the rewrite.
 - **No transport but HTTP.** The context carries fields over a `CarrierReader`/`CarrierWriter`, so
   RMQ, BullMQ and WebSockets each need a carrier and a mount point — around twenty lines apiece,
   deliberately unwritten until a transport actually exists.

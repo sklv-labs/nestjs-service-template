@@ -501,14 +501,42 @@ There is no `nest-cli.json`, and no path aliases — plain tsc does not rewrite 
 
 ## Database
 
-Tables live in `<feature>/domain/schemas/*.schema.ts` and are globbed by `drizzle.config.ts`.
+Drizzle **v1** (`1.0.0-rc.x`) over `node-postgres`, provided by
+`@sklv-labs/nestjs-core/database`. Tables live with the feature that owns them
+(`users/domain/users.table.ts`) and are re-exported from `src/database/schema.ts`, which is what
+`drizzle.config.ts` points at — a single barrel, not a glob. The previous glob
+(`./src/**/domain/schemas/*.schema.ts`) matched no file in this repository, so migration
+generation had never seen a table.
 
-`casing: 'snake_case'` is set in both the drizzle client and the kit config. Both must agree, or
-generated SQL will not match the queries.
+**`@InjectDatabase()` is transaction-aware; `@InjectDatabaseClient()` is not.** The raw client
+inside a `@Transactional()` method runs on its own connection and commits even when the
+transaction rolls back, silently. That is how the first version of the users repository was
+written, and only a probe that threw after an insert caught it — the row was still there.
+Repositories use `@InjectDatabase()`.
 
-`db:push` is local-only. Shared environments get `db:generate` + `db:migrate`.
+`@Transactional()` comes from the same async local storage as the request context:
+`ContextModule.forRoot({ registry, plugins: [drizzleTransactionPlugin()] })`. Every repository
+called inside the method joins that transaction, so nothing threads a handle through the layers.
 
-There is no `@Transactional()` — that lived in a retired package. Use `db.transaction(tx => ...)`.
+**Two v1 API facts** that broke the previous call site, both confirmed from the installed types:
+`drizzle()` has no positional overload — it is `drizzle({ client: pool })` — and
+`NodePgDatabase` is generic over **relations**, not schema. `schema` was removed from the pg
+driver's config, so `db.query.*` now requires `defineRelations()`; plain
+`select`/`insert`/`update` needs nothing. There is no `casing` option any more either; every
+column names itself explicitly, which is why removing it changed no SQL.
+
+Migrations are committed under `drizzle/`, one folder per migration holding `migration.sql` plus
+`snapshot.json` (v1 format — no `journal.json`). Generate with `pnpm db:generate --name <what>`;
+an unnamed migration gets a random one like `romantic_junta`. `db:push` is local-only; every
+shared environment and CI runs `db:migrate`.
+
+**The compose file mounts `postgres_data:/var/lib/postgresql`, not `/var/lib/postgresql/data`.**
+Postgres 18 images keep data in a major-version subdirectory and expect a single mount at the
+parent; mounting `/data` makes the entrypoint treat the volume as a stray data directory and
+refuse to start, in a restart loop. CI never sees this because its Postgres service has no volume.
+
+`uuidv7()` in `primaryUuid()` is a Postgres 18 built-in. On an older server, generate ids in the
+application instead.
 
 ## Writing
 

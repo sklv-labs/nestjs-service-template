@@ -92,6 +92,11 @@ jobs:
             exit 1
           fi
 
+      # The service reads and writes real tables now, so the schema has to exist before it starts.
+      # Running the committed migrations here also proves they apply to an empty database.
+      - name: Apply migrations
+        run: pnpm db:migrate
+
       - name: Start the service
         run: |
           node dist/src/main.js > /tmp/service.log 2>&1 &

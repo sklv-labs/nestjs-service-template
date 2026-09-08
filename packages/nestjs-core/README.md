@@ -62,6 +62,33 @@ dependency it does not need.
 **Internal structure is not the public surface.** Every import above resolves through the area
 barrel named in `exports`, so this whole layout changed without a single consumer edit.
 
+## Database
+
+Drizzle v1 (`1.0.0-rc.x`) over `node-postgres`, one dialect. Transactions propagate through the
+request context, so a repository takes no transaction parameter:
+
+```ts
+ContextModule.forRoot({ registry: appContext, plugins: [drizzleTransactionPlugin()] }),
+DatabaseModule.forRootAsync({ inject: [ConfigService], useFactory: (c) => c.database }),
+```
+
+```ts
+class DrizzleUsersRepository extends UsersRepository {
+  @InjectDatabase() private readonly db: Database; // the transaction, inside @Transactional()
+}
+```
+
+**`InjectDatabase()` is the transaction-aware proxy; `InjectDatabaseClient()` is not.** A write
+issued through the raw client inside a `@Transactional()` method runs on its own connection and
+commits even when the transaction rolls back, with no error. This area's first repository was
+written that way, and a probe that threw after an insert still found the row committed — which is
+why the safe one owns the obvious name.
+
+Two v1 details worth knowing, both verified against the installed types rather than the docs:
+`drizzle()` has no positional overload (`drizzle({ client: pool })`), and `NodePgDatabase` is
+generic over **relations**, not schema — `schema` was removed from the pg config entirely, so
+`db.query.*` now requires `defineRelations()`.
+
 ## Rules
 
 **Nothing here imports from the service.** This project has its own `tsconfig.json`, so the

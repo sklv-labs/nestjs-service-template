@@ -13,11 +13,11 @@ if (!url) {
 
 export default defineConfig({
   out: './drizzle',
-  schema: './src/**/domain/schemas/*.schema.ts',
+  // The barrel, not a glob. The previous value — './src/**/domain/schemas/*.schema.ts' — matched
+  // no file in this repository, so migration generation had never seen a table.
+  schema: './src/database/schema.ts',
   dialect: 'postgresql',
-  casing: 'snake_case',
   dbCredentials: { url },
   migrations: { table: 'migrations', schema: 'public' },
-  strict: true,
   verbose: true,
 });

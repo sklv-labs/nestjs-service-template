@@ -9,7 +9,10 @@ services:
     ports:
       - '5433:5432'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Postgres 18+ images store data in a major-version subdirectory and expect a single mount
+      # here, not at `/data`. Mounting `/var/lib/postgresql/data` makes the entrypoint treat the
+      # volume as a stray data directory and refuse to start.
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U admin -d service']
       interval: 5s

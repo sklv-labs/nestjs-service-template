@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService, TerminusModule } from '@nestjs/terminus';
 import { Pool } from 'pg';
 
-import { PG_POOL } from '../db';
+import { PG_POOL } from '@sklv-labs/nestjs-core/database';
 
 @ApiTags('Health')
 @Controller('health')

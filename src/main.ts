@@ -5,6 +5,7 @@ import { StandardSchemaValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
+import { LogController } from 'fastify';
 import { SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
@@ -19,12 +20,15 @@ async function bootstrap(): Promise<void> {
   const adapter = new FastifyAdapter({
     // One instance for both: Fastify's access log and the application's own lines.
     loggerInstance: logger,
-    // Ours replaces it: one detailed line per request instead of Fastify's incoming/completed pair.
-    // Deprecated in Fastify 5.12 (FSTDEP023) and removed in 6, where it becomes
-    // `logController: new LogController({ disableRequestLogging: true })`. Waiting: `LogController`
-    // is exported by `fastify`, which is a peer of @nestjs/platform-fastify and deliberately not a
-    // direct dependency here — two copies of Fastify broke @fastify/helmet's peer types before.
-    disableRequestLogging: true,
+    // Ours replaces it: one detailed line per request instead of Fastify's incoming/completed
+    // pair. The top-level `disableRequestLogging` option does the same thing but is deprecated
+    // (FSTDEP023) and goes away in Fastify 6.
+    //
+    // Fastify validates this with `instanceof`, so `LogController` has to come from the *same*
+    // copy of fastify the adapter uses. `@nestjs/platform-fastify` pins `fastify` to an exact
+    // version, so this project pins the identical one — a caret range would resolve to a newer
+    // patch, and a second copy makes Fastify throw FST_ERR_LOG_INVALID_LOG_CONTROLLER at boot.
+    logController: new LogController({ disableRequestLogging: true }),
     // Id creation, driven by the field declaration in `config/context.ts`. This is only where the
     // transport is handed it — Fastify has to decide `req.id` before any framework code runs.
     ...fastifyContextOptions(appContext),

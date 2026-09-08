@@ -454,6 +454,13 @@ the meantime.
 
 These are runtime facts, and they hold whatever the architecture turns into.
 
+**`fastify` is pinned to an exact version, matching what `@nestjs/platform-fastify` pins.** The
+adapter is given a `LogController` instance (replacing the deprecated `disableRequestLogging`
+option, gone in Fastify 6), and Fastify validates it with `instanceof` — so it must come from the
+same physical copy of fastify the adapter uses. A caret range resolves to a newer patch, giving two
+copies and `FST_ERR_LOG_INVALID_LOG_CONTROLLER` at boot. When platform-fastify bumps its pin, bump
+this one in the same commit; the failure is loud, but it is a boot failure.
+
 **`build` deletes `dist` first, and that is not paranoia.** `tsc -b` never removes output for a
 source file that no longer exists, and Node resolves `'./endpoint'` to `endpoint.js` _before_
 `endpoint/index.js`. So renaming `endpoint.ts` into an `endpoint/` directory leaves a stale

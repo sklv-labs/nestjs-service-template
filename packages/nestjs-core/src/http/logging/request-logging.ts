@@ -91,6 +91,7 @@ type FastifyLike = { addHook: (event: string, handler: (...args: never[]) => voi
 type Req = {
   method: string;
   url: string;
+  ip?: string;
   headers: Record<string, unknown>;
   query?: unknown;
   params?: unknown;
@@ -139,11 +140,19 @@ const parsePayload = (payload: unknown, max: number): unknown => {
 };
 
 /**
- * One detailed line per request, on completion, covering both directions.
+ * Two lines per request: one when it arrives, one when it completes.
  *
- * Registered as a Fastify hook rather than a Nest interceptor so it also covers requests Nest never
- * routes — 404s, malformed bodies, plugin rejections — which is exactly where detail is wanted.
- * Fastify's own two-line access log is disabled in favour of this.
+ * The arrival line is what tells you a request reached the process at all. Without it, a handler
+ * that hangs, a process that dies mid-request and a request that was never received are
+ * indistinguishable in the logs — all three simply have no line.
+ *
+ * **The request body is on the completion line, not the arrival line.** Fastify has not parsed the
+ * body when `onRequest` fires; it exists from `preValidation` onward. Logging arrival later would
+ * buy the body at the cost of the requests that matter most — a 404, a malformed payload or a
+ * plugin rejection never reaches those hooks, and would lose its arrival line entirely.
+ *
+ * Registered as Fastify hooks rather than Nest interceptors for the same reason: interceptors only
+ * see requests Nest routes.
  *
  * **On logging bodies.** Redaction is the only thing standing between this and personal data or
  * credentials in log storage forever. The paths in the logger's `redact` list must match the shape
@@ -158,6 +167,30 @@ export const registerRequestLogging = (
   const opts = { ...DEFAULTS, ...options };
   const log = logger.forContext('Request');
   const instance = app.getHttpAdapter().getInstance() as unknown as FastifyLike;
+  const write = opts.level === 'debug' ? log.debug : log.log;
+
+  instance.addHook('onRequest', (req: Req, _reply: Reply, done: () => void) => {
+    if (opts.ignore(req.url)) {
+      done();
+      return;
+    }
+
+    write(
+      {
+        req: {
+          method: req.method,
+          url: req.url,
+          ...(req.ip === undefined ? {} : { ip: req.ip }),
+          ...(opts.headers ? { headers: req.headers } : {}),
+          ...(opts.query ? { query: req.query } : {}),
+          ...(req.params ? { params: req.params } : {}),
+        },
+      },
+      `${req.method} ${req.url}`,
+    );
+
+    done();
+  });
 
   if (opts.responseBody) {
     instance.addHook('onSend', (req: Req, _reply: Reply, payload: unknown, done: () => void) => {
@@ -177,16 +210,16 @@ export const registerRequestLogging = (
     const bytes = Number(allHeaders?.['content-length'] ?? 0) || undefined;
 
     // 5xx is our fault and belongs in the error log; everything else is the access log.
-    const emit = reply.statusCode >= 500 ? log.error : opts.level === 'debug' ? log.debug : log.log;
+    const emit = reply.statusCode >= 500 ? log.error : write;
 
     emit(
       {
+        // Method and url repeat the arrival line deliberately: a completion line has to be
+        // readable on its own, and correlating two lines by id to learn which route this was is
+        // exactly the work the logs should be doing for you. Headers and query are not repeated.
         req: {
           method: req.method,
           url: req.url,
-          ...(opts.headers ? { headers: req.headers } : {}),
-          ...(opts.query ? { query: req.query } : {}),
-          ...(req.params ? { params: req.params } : {}),
           ...(opts.body ? { body: cap(req.body, opts.maxBodyBytes) } : {}),
         },
         res: {

@@ -24,6 +24,7 @@ export const listUsers = endpoint({
     search: query.search,
     sort: query.sort,
   }),
+
   toResponse: (out: ListUsersOutput) => ({
     items: out.users.map(toUserResponse),
     meta: { page: out.page, limit: out.limit, total: out.total },

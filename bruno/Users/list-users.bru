@@ -1,7 +1,7 @@
 meta {
   name: List users
   type: http
-  seq: 2
+  seq: 1
 }
 
 get {
@@ -13,8 +13,8 @@ get {
 params:query {
   page: 1
   limit: 20
+  search: alex
   sort: -createdAt
-  ~search: 
   ~sort: createdAt
   ~sort: email
   ~sort: -email

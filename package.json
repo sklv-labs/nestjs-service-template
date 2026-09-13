@@ -42,6 +42,7 @@
     "@nestjs/platform-fastify": "^12.0.1",
     "@nestjs/swagger": "^12.0.1",
     "@nestjs/terminus": "^12.0.0",
+    "@node-rs/argon2": "^2.2.1",
     "@sklv-labs/core": "^0.1.1",
     "@sklv-labs/nestjs-config": "^0.2.1",
     "@sklv-labs/nestjs-core": "workspace:*",

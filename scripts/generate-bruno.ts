@@ -15,12 +15,24 @@ import { jsonToBruV2 } from '@usebruno/lang';
 
 const ROOT = resolve(process.cwd(), 'bruno');
 
-/** `Users` → `user`, so a captured id reads as `{{userId}}`. */
-const singular = (folder: string): string => {
-  const word = folder.replace(/[^A-Za-z]/g, '');
-  const base = word.endsWith('s') ? word.slice(0, -1) : word;
+/** `User` → `userId`, the variable a created resource is published under. */
+const idVariable = (component: string): string =>
+  `${component.charAt(0).toLowerCase()}${component.slice(1)}Id`;
 
-  return base.charAt(0).toLowerCase() + base.slice(1);
+/** Path params differ between the spec (`{id}`) and the converter (`:id`); compare them alike. */
+const route = (method: string, path: string): string =>
+  `${method.toLowerCase()} ${path.replace(/\{[^}]+\}|:[A-Za-z0-9_]+/g, '*')}`;
+
+type Operation = { responses?: Record<string, { content?: Record<string, { schema?: unknown }> }> };
+
+/** The component a 2xx response is a `$ref` to — `#/components/schemas/User` → `User`. */
+const successComponent = (operation: Operation): string | undefined => {
+  const ok = Object.entries(operation.responses ?? {}).find(([status]) => status.startsWith('2'));
+  const schema = ok?.[1]?.content?.['application/json']?.schema as
+    { $ref?: string; items?: { $ref?: string } } | undefined;
+  const ref = schema?.$ref ?? schema?.items?.$ref;
+
+  return ref?.split('/').pop();
 };
 
 const fileName = (name: string): string =>
@@ -29,19 +41,25 @@ const fileName = (name: string): string =>
     .replace(/^-|-$/g, '')
     .toLowerCase()}.bru`;
 
-const toBru = (item: BrunoItem, folder: string, seq: number): string => {
+const toBru = (item: BrunoItem, resources: Map<string, string>, seq: number): string => {
   const request = item.request!;
-  const idVar = `${singular(folder)}Id`;
+  const path = new URL(request.url.replace(/{{[^}]+}}/, 'http://x')).pathname;
+  const component = resources.get(route(request.method, path));
+  const idVar = component === undefined ? undefined : idVariable(component);
   const hasBody = request.body?.mode === 'json' && Boolean(request.body.json);
 
   // A path id points at the variable the create request captures, so `bru run` exercises a real
   // flow — create, then fetch what was created — instead of three unrelated calls.
   const params = (request.params ?? []).map((p) =>
-    p.type === 'path' && p.name === 'id' ? { ...p, value: `{{${idVar}}}` } : p,
+    p.type === 'path' && p.name === 'id' && idVar !== undefined
+      ? { ...p, value: `{{${idVar}}}` }
+      : p,
   );
 
-  // Conversely, a create whose response carries an id publishes it for later requests.
-  const capturesId = request.method.toUpperCase() === 'POST';
+  // Conversely, a create whose response carries an id publishes it for later requests. The name
+  // comes from the response component rather than the folder, so `POST /auth/register` and
+  // `GET /users/{id}` agree that they are both about a `User` — which folder names do not.
+  const capturesId = request.method.toUpperCase() === 'POST' && idVar !== undefined;
 
   return jsonToBruV2({
     meta: { name: item.name, type: 'http', seq },
@@ -61,8 +79,22 @@ const toBru = (item: BrunoItem, folder: string, seq: number): string => {
   });
 };
 
-const spec: unknown = JSON.parse(readFileSync(resolve(process.cwd(), 'openapi.json'), 'utf8'));
+const spec = JSON.parse(readFileSync(resolve(process.cwd(), 'openapi.json'), 'utf8')) as {
+  paths: Record<string, Record<string, Operation>>;
+};
 const collection = openApiToBruno(spec);
+
+const resources = new Map<string, string>();
+
+for (const [path, operations] of Object.entries(spec.paths)) {
+  for (const [method, operation] of Object.entries(operations)) {
+    const component = successComponent(operation);
+
+    if (component !== undefined) {
+      resources.set(route(method, path), component);
+    }
+  }
+}
 
 let written = 0;
 
@@ -82,7 +114,7 @@ for (const folder of collection.items) {
       return;
     }
 
-    writeFileSync(resolve(dir, fileName(item.name)), toBru(item, folder.name, index + 1));
+    writeFileSync(resolve(dir, fileName(item.name)), toBru(item, resources, index + 1));
     written += 1;
   });
 }

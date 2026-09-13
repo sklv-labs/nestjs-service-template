@@ -248,10 +248,10 @@
         ]
       }
     },
-    "/api/v1/users": {
+    "/api/v1/auth/register": {
       "post": {
-        "description": "Validates the body, then applies registration rules.",
-        "operationId": "UsersController_create",
+        "description": "Creates an account and attaches a password as its first sign-in method.",
+        "operationId": "AuthController_register",
         "parameters": [
           {
             "name": "x-request-id",
@@ -297,7 +297,7 @@
         },
         "responses": {
           "201": {
-            "description": "User registered",
+            "description": "Account created",
             "content": {
               "application/json": {
                 "schema": {
@@ -307,17 +307,31 @@
             }
           },
           "400": {
-            "description": "Body failed contract validation",
+            "description": "Body failed contract validation\n\nINVALID_EMAIL",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/INVALID_EMAIL"
+                },
+                "examples": {
+                  "MALFORMED": {
+                    "summary": "That is not a valid email address",
+                    "value": {
+                      "statusCode": 400,
+                      "message": "That is not a valid email address",
+                      "errorCode": "INVALID_EMAIL",
+                      "reason": "MALFORMED",
+                      "details": {
+                        "email": "not-an-address"
+                      }
+                    }
+                  }
                 }
               }
             }
           },
           "409": {
-            "description": "Registration refused",
+            "description": "USER_REGISTRATION_FAILED",
             "content": {
               "application/json": {
                 "schema": {
@@ -353,11 +367,13 @@
             }
           }
         },
-        "summary": "Register a user",
+        "summary": "Register with an email and password",
         "tags": [
-          "Users"
+          "Auth"
         ]
-      },
+      }
+    },
+    "/api/v1/users": {
       "get": {
         "operationId": "UsersController_list",
         "parameters": [
@@ -370,7 +386,8 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 9007199254740991,
-              "description": "1-based page number"
+              "description": "Page number, one-based",
+              "example": 1
             }
           },
           {
@@ -382,7 +399,8 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 100,
-              "description": "Items per page, max 100"
+              "description": "Rows per page",
+              "example": 20
             }
           },
           {
@@ -391,9 +409,8 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "description": "Case-insensitive match on email"
+              "description": "Filter by email substring",
+              "example": "alex"
             }
           },
           {
@@ -490,7 +507,7 @@
             }
           },
           "400": {
-            "description": "The id is not a UUID v7",
+            "description": "The id is not a UUID",
             "content": {
               "application/json": {
                 "schema": {
@@ -500,7 +517,7 @@
             }
           },
           "404": {
-            "description": "No user with that id",
+            "description": "USER_NOT_FOUND",
             "content": {
               "application/json": {
                 "schema": {
@@ -565,37 +582,44 @@
             "description": "The user's primary email address",
             "example": "alex@example.com"
           },
+          "emailVerified": {
+            "type": "boolean",
+            "description": "Whether the address has been confirmed"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "description": "Account status",
+            "example": "active"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
             "description": "When the user was created",
-            "example": "2026-09-03T10:00:00.000Z"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-            "description": "When the user was last updated",
-            "example": "2026-09-03T10:00:00.000Z"
+            "example": "2026-09-13T10:00:00.000Z"
           }
         },
         "required": [
           "id",
           "email",
-          "createdAt",
-          "updatedAt"
+          "emailVerified",
+          "status",
+          "createdAt"
         ],
         "additionalProperties": false
       },
-      "ApiError": {
+      "INVALID_EMAIL": {
         "type": "object",
         "properties": {
           "statusCode": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "HTTP status code"
+            "type": "number",
+            "enum": [
+              400
+            ]
           },
           "message": {
             "anyOf": [
@@ -616,17 +640,41 @@
             "type": "string"
           },
           "errorCode": {
-            "description": "Stable machine-readable code to branch on",
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "INVALID_EMAIL"
+            ]
           },
           "requestId": {
             "description": "Correlates this response with the server logs",
             "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "MALFORMED"
+            ],
+            "description": "Which of the cases behind this code occurred"
+          },
+          "details": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "email"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "statusCode",
-          "message"
+          "message",
+          "errorCode",
+          "reason",
+          "details"
         ],
         "additionalProperties": false
       },
@@ -758,18 +806,70 @@
             "description": "The user's primary email address",
             "example": "alex@example.com"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "description": "Account status",
+            "example": "active"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
             "description": "When the user was created",
-            "example": "2026-09-03T10:00:00.000Z"
+            "example": "2026-09-13T10:00:00.000Z"
           }
         },
         "required": [
           "id",
           "email",
+          "status",
           "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "HTTP status code"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Human-readable explanation"
+          },
+          "error": {
+            "description": "HTTP status text",
+            "type": "string"
+          },
+          "errorCode": {
+            "description": "Stable machine-readable code to branch on",
+            "type": "string"
+          },
+          "requestId": {
+            "description": "Correlates this response with the server logs",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message"
         ],
         "additionalProperties": false
       },

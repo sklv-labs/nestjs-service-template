@@ -56,9 +56,7 @@ users
 
 password_credentials
   user_id      uuid pk references users(id) on delete cascade
-  hash         text not null
-  algorithm    text not null                     -- 'argon2id'
-  params       jsonb not null                    -- the cost parameters this hash was made with
+  hash         text not null                     -- PHC string: encodes algorithm and parameters
   updated_at   timestamptz not null
 
 oauth_accounts
@@ -210,7 +208,11 @@ Sign-out revokes the family.
 ## Password hashing
 
 argon2id via `@node-rs/argon2` — prebuilt binaries, so no node-gyp in the image. OWASP baseline
-parameters (m=19456 KiB, t=2, p=1), stored alongside the hash so they can move.
+parameters (m=19456 KiB, t=2, p=1).
+
+The design originally called for `algorithm` and `params` columns. Implementation dropped them: a
+PHC string (`$argon2id$v=19$m=19456,t=2,p=1$…`) already encodes both, so separate columns would be
+a second copy free to disagree with the hash they describe. `needsRehash` parses the string.
 
 Behind a port:
 

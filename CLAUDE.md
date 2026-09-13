@@ -334,30 +334,53 @@ endpoints rather than repeating the status, example and description.
 
 ## Current layering
 
-An approach to replacing this layering is written up in
-[docs/v1-architecture.md](docs/v1-architecture.md), with
-[docs/auth-design.md](docs/auth-design.md) as the feature that tests it. Neither is implemented;
-what follows is what the code does today.
+[docs/v1-architecture.md](docs/v1-architecture.md) is the approach; `src/identity/` is the first
+feature built on it, and [docs/auth-design.md](docs/auth-design.md) is its design.
 
-One directory per feature, four layers, dependencies pointing inward:
-`ui` → `operation` → `service` → `domain`.
+```
+src/identity/
+├── domain/            no Nest, no Drizzle imports
+│   ├── entities/      the User aggregate + its snapshot types
+│   ├── schemas/       tables (globbed by drizzle-kit) — persistence, here for tooling only
+│   ├── errors/        one business error per file
+│   ├── ports/         UsersRepository, UsersQueries, PasswordHasher, Clock — abstract classes
+│   ├── read-models/   flat projections; none can carry a password hash
+│   └── value-objects/ Email (normalising), UserId (minting)
+├── infrastructure/    the only place a row type may be imported
+├── operation/         one handler per scenario
+└── ui/http/           contracts, controllers
+```
 
-`domain/` currently has no `@nestjs/*` imports. `operation/` is a pass-through with no use cases in
-it. The repository port is an `abstract class` so it doubles as a DI token, and there is exactly one
-adapter. Whether any of that is worth keeping is an open question — see the README.
+Three rules do the work:
 
-The `users` feature is a specimen for judging the layering, not a reference to copy verbatim. It
-has a deliberate placeholder: the controller passes a raw password through as `passwordHash`,
-standing in for a hashing decision that has not been made.
+- **Rows never leave `infrastructure/`.** The mapper is the boundary; nothing above it names a row
+  type. A read model is _not_ a row — it is a feature-owned type that a SQL projection produces.
+- **Writes go through the aggregate, reads go around it.** `UsersRepository` returns whole
+  aggregates and has no `list`; `UsersQueries` returns projections and has no `save`. Rebuilding an
+  aggregate to render a list is cost with nothing to protect.
+- **Invariants live on the aggregate, rules needing a port live in the handler.** "At least one
+  sign-in method" is `User.unlink`; "this address is taken" is `RegisterUserHandler`, because
+  answering it needs the repository.
+
+The aggregate mints its own ids, never reads the clock (`now` is an argument), and `restore()`
+deliberately skips `register()`'s validation — rows written under older rules must still load.
+`save()` calls `user.committed(version)` so the in-memory object is not left a version behind.
+
+`src/users/` is gone; it was Level 0 with `UserRow` leaking through all four layers and a plaintext
+password standing in for a hashing decision.
 
 ## Domain errors
 
 One error per file, in `<feature>/domain/errors/`, named after its code in kebab-case:
 
 ```
-src/users/domain/errors/user-not-found.error.ts            → USER_NOT_FOUND
-src/users/domain/errors/user-registration-failed.error.ts  → USER_REGISTRATION_FAILED
+src/identity/domain/errors/user-not-found.error.ts            → USER_NOT_FOUND
+src/identity/domain/errors/auth-method-required.error.ts      → AUTH_METHOD_REQUIRED
 ```
+
+An error the domain can raise but no endpoint documents is named by the boot scan and returns 500.
+That warning is currently accurate: link and unlink do not exist yet, so the methods errors have no
+route to be documented on.
 
 The mapping is mechanical on purpose: a code seen in a response or a log leads straight to the
 file, and two errors cannot share a code without visibly colliding as two files.

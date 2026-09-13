@@ -1,5 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
   "extends": ["./node_modules/@sklv-labs/dev-configs/oxlint/nestjs.json"],
-  "ignorePatterns": ["dist", "coverage", "drizzle", "*.d.ts"]
+  "ignorePatterns": ["dist", "coverage", "drizzle", "*.d.ts"],
+  "rules": {
+    // An aggregate keeps its state in private fields and exposes what callers may read through
+    // getters, so `_email` beside `get email()` is the pattern rather than a slip.
+    "no-underscore-dangle": "off"
+  }
 }

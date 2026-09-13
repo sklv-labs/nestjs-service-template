@@ -140,19 +140,20 @@ const parsePayload = (payload: unknown, max: number): unknown => {
 };
 
 /**
- * Two lines per request: one when it arrives, one when it completes.
+ * One line per request, on completion, covering both directions.
  *
- * The arrival line is what tells you a request reached the process at all. Without it, a handler
- * that hangs, a process that dies mid-request and a request that was never received are
- * indistinguishable in the logs — all three simply have no line.
+ * One rather than a start/finish pair, which is what nginx, envoy, morgan and pino-http all do:
+ * every line already carries the correlation id, so "which request did this error belong to" is a
+ * filter, not a question of ordering. A pair would double the highest-volume log stream and split
+ * one request across two records that have to be joined to aggregate.
  *
- * **The request body is on the completion line, not the arrival line.** Fastify has not parsed the
- * body when `onRequest` fires; it exists from `preValidation` onward. Logging arrival later would
- * buy the body at the cost of the requests that matter most — a 404, a malformed payload or a
- * plugin rejection never reaches those hooks, and would lose its arrival line entirely.
+ * The one thing a start line buys is evidence of a request that *never* completed — a hung
+ * handler, a process killed mid-request. That belongs to tracing: a span records start, end and
+ * duration as one object, and "spans with no end" answers it without doubling the logs.
  *
- * Registered as Fastify hooks rather than Nest interceptors for the same reason: interceptors only
- * see requests Nest routes.
+ * Registered as a Fastify hook rather than a Nest interceptor so it also covers requests Nest
+ * never routes — 404s, malformed bodies, plugin rejections — which is exactly where detail is
+ * wanted.
  *
  * **On logging bodies.** Redaction is the only thing standing between this and personal data or
  * credentials in log storage forever. The paths in the logger's `redact` list must match the shape
@@ -168,29 +169,6 @@ export const registerRequestLogging = (
   const log = logger.forContext('Request');
   const instance = app.getHttpAdapter().getInstance() as unknown as FastifyLike;
   const write = opts.level === 'debug' ? log.debug : log.log;
-
-  instance.addHook('onRequest', (req: Req, _reply: Reply, done: () => void) => {
-    if (opts.ignore(req.url)) {
-      done();
-      return;
-    }
-
-    write(
-      {
-        req: {
-          method: req.method,
-          url: req.url,
-          ...(req.ip === undefined ? {} : { ip: req.ip }),
-          ...(opts.headers ? { headers: req.headers } : {}),
-          ...(opts.query ? { query: req.query } : {}),
-          ...(req.params ? { params: req.params } : {}),
-        },
-      },
-      `${req.method} ${req.url}`,
-    );
-
-    done();
-  });
 
   if (opts.responseBody) {
     instance.addHook('onSend', (req: Req, _reply: Reply, payload: unknown, done: () => void) => {
@@ -214,12 +192,13 @@ export const registerRequestLogging = (
 
     emit(
       {
-        // Method and url repeat the arrival line deliberately: a completion line has to be
-        // readable on its own, and correlating two lines by id to learn which route this was is
-        // exactly the work the logs should be doing for you. Headers and query are not repeated.
         req: {
           method: req.method,
           url: req.url,
+          ...(req.ip === undefined ? {} : { ip: req.ip }),
+          ...(opts.headers ? { headers: req.headers } : {}),
+          ...(opts.query ? { query: req.query } : {}),
+          ...(req.params ? { params: req.params } : {}),
           ...(opts.body ? { body: cap(req.body, opts.maxBodyBytes) } : {}),
         },
         res: {

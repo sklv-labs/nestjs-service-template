@@ -144,18 +144,15 @@ The correlation field is `reqId`, matching Fastify's own. Fastify's `requestIdLo
 its side instead, but it is deprecated and removed in Fastify 6. It is configurable via
 `requestIdKey`.
 
-**Two log lines per request: arrival and completion**, both Fastify hooks rather than Nest
-interceptors, so a 404, a malformed body or a plugin rejection is logged too — interceptors only
-see what Nest routes. Verified: both cases produce a correlated pair.
+**One log line per request, on completion** — the nginx/envoy/morgan/pino-http default, not a
+start/finish pair. Every line already carries the correlation id, so "which request did this error
+belong to" is a filter rather than a question of ordering; a pair would double the highest-volume
+stream and split one request into two records that have to be joined to aggregate. Do not add a
+start line back: the one thing it buys — evidence of a request that never completed — belongs to
+tracing, where a span records start and end as one object.
 
-The arrival line carries no request body, and that is not an oversight. Fastify has not parsed the
-body at `onRequest`; it exists from `preValidation` onward, and logging arrival there would lose
-the arrival line for exactly the requests that never reach those hooks. The body therefore rides on
-the completion line, under `req.body` so the existing redaction paths still match it.
-
-The arrival hook runs inside the request context because it is registered after Nest's middleware,
-so both lines carry the same id. If that ever changes the arrival line silently loses its `reqId` —
-an `app.inject()` test asserting both lines share an id is the thing that would catch it.
+It is a Fastify hook rather than a Nest interceptor, so a 404, a malformed body or a plugin
+rejection is logged too; interceptors only see what Nest routes.
 
 **Two exception filters, both narrow.** `DomainExceptionFilter` is `@Catch(DomainError)`;
 `UnhandledExceptionFilter` is `@Catch()` and logs the real cause while returning a body that reveals

@@ -345,6 +345,33 @@ The `users` feature is a specimen for judging the layering, not a reference to c
 has a deliberate placeholder: the controller passes a raw password through as `passwordHash`,
 standing in for a hashing decision that has not been made.
 
+## Domain errors
+
+One error per file, in `<feature>/domain/errors/`, named after its code in kebab-case:
+
+```
+src/users/domain/errors/user-not-found.error.ts            → USER_NOT_FOUND
+src/users/domain/errors/user-registration-failed.error.ts  → USER_REGISTRATION_FAILED
+```
+
+The mapping is mechanical on purpose: a code seen in a response or a log leads straight to the
+file, and two errors cannot share a code without visibly colliding as two files.
+
+**Codes are not an enum, and that is deliberate.** The code already has a literal type — the
+factory captures it with `const Code extends string`, so `UserNotFound.code` is
+`'USER_NOT_FOUND'`, not `string` — and reasons are already exhaustive, since `raise()` accepts
+only that error's own keys. An enum would move the code away from the declaration that owns it,
+leaving two places to edit and the standing possibility of a member with no error behind it. It is
+also a TypeScript-only runtime construct, in a codebase that expresses every other closed set as a
+zod literal union.
+
+**A duplicate code throws at declaration.** It used to be accepted silently, and the collision is
+invisible: the code names the OpenAPI component, so one schema overwrites the other, and it keys
+the error-to-status map, so whichever endpoint the boot scan reached last decided the response.
+
+Add a reason rather than a code when a new way to fail appears — a new code breaks every client
+branching on the old one, a new reason does not.
+
 ## Schema contracts
 
 The UI layer uses Zod schemas as contracts, one per boundary, projected as runtime validation

@@ -41,7 +41,8 @@ src/                   app.module.ts, load-env.ts, main.ts — nothing else at t
 src/users/
 ├── domain/
 │   ├── schemas/       *.schema.ts — tables, globbed by drizzle-kit; *.relations.ts alongside
-│   └── …              branded id, business errors — no framework, no HTTP
+│   ├── errors/        one business error per file, named after its code
+│   └── …              branded id — no framework, no HTTP
 ├── service/           port, in-memory adapter, business rules
 ├── operation/         handlers — one scenario each, transport-agnostic
 ├── ui/

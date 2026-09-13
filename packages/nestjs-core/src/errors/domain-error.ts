@@ -62,6 +62,9 @@ const declared = new Set<string>();
  */
 export const declaredBusinessErrors = (): string[] => [...declared];
 
+/** Clears the declaration registry. For tests that re-declare codes in one process. */
+export const resetDeclaredErrors = (): void => declared.clear();
+
 export const businessError = <
   const Code extends string,
   const R extends Reasons,
@@ -71,6 +74,13 @@ export const businessError = <
   reasons: R;
   details: Details;
 }): BusinessError<Code, R, Details> => {
+  if (declared.has(def.code)) {
+    // Two errors sharing a code collide silently everywhere it is used as an identity: the
+    // OpenAPI component is named after it, so one schema overwrites the other, and the endpoint
+    // scan maps it to a status, so whichever endpoint is scanned last decides the response.
+    throw new Error(`Business error code "${def.code}" is already declared`);
+  }
+
   declared.add(def.code);
 
   return {

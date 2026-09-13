@@ -138,6 +138,14 @@ details shape — and no HTTP status, because that is a transport decision. The 
 documents an error is also what maps its code to a status, so the documented status and the one the
 filter returns cannot disagree.
 
+## Design documents
+
+- [docs/v1-architecture.md](docs/v1-architecture.md) — the domain-model and layering approach
+  currently under test: when a feature gets an aggregate, how read and write paths differ, and the
+  criteria that decide whether it survives.
+- [docs/auth-design.md](docs/auth-design.md) — users and authentication (password plus third-party
+  providers), designed as the vehicle for testing that approach.
+
 ## Open questions
 
 Things worth resolving before any of this hardens into a template:

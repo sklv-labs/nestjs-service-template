@@ -334,6 +334,11 @@ endpoints rather than repeating the status, example and description.
 
 ## Current layering
 
+An approach to replacing this layering is written up in
+[docs/v1-architecture.md](docs/v1-architecture.md), with
+[docs/auth-design.md](docs/auth-design.md) as the feature that tests it. Neither is implemented;
+what follows is what the code does today.
+
 One directory per feature, four layers, dependencies pointing inward:
 `ui` → `operation` → `service` → `domain`.
 

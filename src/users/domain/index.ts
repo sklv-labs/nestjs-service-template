@@ -1,2 +1,2 @@
 export * from './users.errors';
-export * from './users.table';
+export * from './schemas/users.schema';

@@ -13,9 +13,11 @@ if (!url) {
 
 export default defineConfig({
   out: './drizzle',
-  // The barrel, not a glob. The previous value — './src/**/domain/schemas/*.schema.ts' — matched
-  // no file in this repository, so migration generation had never seen a table.
-  schema: './src/database/schema.ts',
+  // Every table in the codebase, by convention rather than by a barrel someone has to remember to
+  // update. A file matched here is a table definition and nothing else: relations live beside it
+  // as `*.relations.ts`, deliberately outside the glob, because drizzle-kit has no use for them —
+  // foreign keys come from `references()` on the columns, not from the relations config.
+  schema: './src/**/domain/schemas/*.schema.ts',
   dialect: 'postgresql',
   dbCredentials: { url },
   migrations: { table: 'migrations', schema: 'public' },

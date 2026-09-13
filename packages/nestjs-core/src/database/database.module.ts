@@ -1,5 +1,6 @@
 import type { DynamicModule, InjectionToken, OnApplicationShutdown } from '@nestjs/common';
 import { Global, Inject, Module } from '@nestjs/common';
+import type { AnyRelations } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
@@ -16,6 +17,14 @@ export type DatabaseModuleOptions = {
     idleTimeoutMillis?: number;
     connectionTimeoutMillis?: number;
   };
+  /**
+   * Relations from `defineRelations()`, which is what `db.query.*` runs on in v1 — the old
+   * `schema` option is gone. Omit it and `select`/`insert`/`update` still work in full.
+   *
+   * Relations split across features compose here: `{ ...relations, ...ordersPart }`, main first,
+   * which is the order drizzle requires.
+   */
+  relations?: AnyRelations;
   /** Log every statement at debug. */
   logQueries?: boolean;
   /** Include bound parameters — the data itself. See `QueryLoggerOptions`. */
@@ -80,8 +89,8 @@ export class DatabaseModule implements OnApplicationShutdown {
 
             return drizzle({
               client: pool,
+              ...(config.relations === undefined ? {} : { relations: config.relations }),
               ...(config.jit === undefined ? {} : { jit: config.jit }),
-              // `schema` is gone in v1 — relations replace it, and this service defines none.
               logger:
                 config.logQueries === false
                   ? undefined

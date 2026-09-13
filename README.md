@@ -39,7 +39,9 @@ packages/nestjs-core/  @sklv-labs/nestjs-core — a real workspace package, not 
 scripts/               build-time tooling: openapi.json and the Bruno collection
 src/                   app.module.ts, load-env.ts, main.ts — nothing else at this level
 src/users/
-├── domain/            table, branded id, business errors — no framework, no HTTP
+├── domain/
+│   ├── schemas/       *.schema.ts — tables, globbed by drizzle-kit; *.relations.ts alongside
+│   └── …              branded id, business errors — no framework, no HTTP
 ├── service/           port, in-memory adapter, business rules
 ├── operation/         handlers — one scenario each, transport-agnostic
 ├── ui/

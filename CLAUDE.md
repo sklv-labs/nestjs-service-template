@@ -519,11 +519,35 @@ There is no `nest-cli.json`, and no path aliases — plain tsc does not rewrite 
 ## Database
 
 Drizzle **v1** (`1.0.0-rc.x`) over `node-postgres`, provided by
-`@sklv-labs/nestjs-core/database`. Tables live with the feature that owns them
-(`users/domain/users.table.ts`) and are re-exported from `src/database/schema.ts`, which is what
-`drizzle.config.ts` points at — a single barrel, not a glob. The previous glob
-(`./src/**/domain/schemas/*.schema.ts`) matched no file in this repository, so migration
-generation had never seen a table.
+`@sklv-labs/nestjs-core/database`.
+
+**Tables live in `<feature>/domain/schemas/<name>.schema.ts`, and `drizzle.config.ts` globs them**
+(`./src/**/domain/schemas/*.schema.ts`). The convention is the registry — there is no barrel to
+update and therefore no way to add a table that migrations do not see. A file matched by that glob
+is a table definition and nothing else.
+
+**There is no schema barrel, and v1 is why.** `drizzle()` no longer takes a `schema` option, so the
+runtime does not need a collected object: queries import the tables they use
+(`import { users } from '../domain'`). The only thing that needs tables in one object is
+`defineRelations`, and that composes locally — see below — rather than globally.
+
+**Relations are runtime-only.** drizzle-kit never loads them: foreign keys come from
+`references()` on the columns, not from the relations config. They live beside the schemas as
+`<name>.relations.ts`, deliberately outside the glob:
+
+```
+src/users/domain/schemas/users.schema.ts        ← globbed by drizzle-kit
+src/users/domain/schemas/users.relations.ts     ← not globbed; runtime only
+src/database/relations.ts                       ← composes the parts, passed to DatabaseModule
+```
+
+A feature declares its own part with `defineRelationsPart(schema, r => …)`; one composition file
+merges them and hands the result to `DatabaseModule.forRootAsync`. **Main relations first** —
+`{ ...relations, ...ordersPart }` — which is the order drizzle requires, not a style preference.
+
+A relation that crosses features belongs in the composition file, not inside one feature's part:
+a part that imports another feature's tables makes the domain layers depend on each other, and the
+composition file is the one place already allowed to know about all of them.
 
 **`@InjectDatabase()` is transaction-aware; `@InjectDatabaseClient()` is not.** The raw client
 inside a `@Transactional()` method runs on its own connection and commits even when the
